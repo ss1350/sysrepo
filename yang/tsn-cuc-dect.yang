@@ -1,0 +1,105 @@
+module tsn-cuc-dect {
+    
+    namespace "urn:tsn:cuc:dect";
+    prefix "dect-cuc";
+    
+    import ieee802-dot1q-tsn-types { 
+        prefix "tsn-types"; 
+        }
+
+    organization
+        "Hochschule Offenburg ivESK and University of Freiburg";
+
+    contact
+        "";
+
+    description "Module for a CUC representing DECT devices and 
+        configuration for them being talkers or listeners TODO: leaf-references?";
+
+    revision 2019-09-12 {
+        description
+        "Several major changes";
+    }
+
+    revision 2019-09-04 {
+        description
+        "Initial revision.";
+    }
+
+    typedef pmid-type {
+        type string {
+            pattern '[0-1]{20}';
+        }
+        description
+            "Typedef for PMIDs: 20 Bits";
+    }
+
+    list devices-list {
+        config false;
+        key "id";
+        description
+            "List of the end stations connected to the CUC
+            This list is only maintained by the CUC";
+        leaf "id" {
+            type uint8;
+            description
+                "unique id to identify the device in this module";
+        }
+        leaf "name" {
+            type string;
+            description
+                "Given name for the DECT PP";
+        }
+        leaf "pmid" {
+            type pmid-type;
+            description
+                "20 Bit Portable part MAC IDentity";
+        }        
+    }
+
+    list talkers-list {
+        config false;
+        description
+            "List of the talkers connected to the CUC
+            This list is only maintained by the CUC";
+        key "talker-id";
+        leaf "talker-id" {
+            type uint8;
+        } uses tsn-types:group-talker;
+    }
+
+    list listeners-list {
+        config false;
+        key "listener-id";
+        description
+            "List of the listeners connected to the CUC
+            This list is only maintained by the CUC";
+        leaf "listener-id" {
+            type uint8;
+        } uses tsn-types:group-listener; 
+    } 
+
+    list streams-list {
+        key "stream-id";            
+        description
+            "list of the streams in which the talkers 
+            and listeners connected to the CUC partake
+            This is created and maintained by the CNC";
+        leaf "stream-id" {
+            type tsn-types:stream-id-type;
+        }
+        container "talker-status" {
+            leaf "talker-id" {
+                type uint8;
+            } uses tsn-types:group-status-talker-listener;
+        } 
+        container "listeners-status"{
+            list "listeners-status-list"{
+                key "listener-id";
+                leaf "listener-id" {
+                    type uint8;                   
+                } uses tsn-types:group-status-talker-listener;
+            } 
+        } uses tsn-types:group-status-stream;
+    } 
+}                          

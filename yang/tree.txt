@@ -1,0 +1,151 @@
+module: tsn-cuc-dect
+  +--ro devices-list* [id]
+  |  +--ro id      uint8
+  |  +--ro name?   string
+  |  +--ro pmid?   pmid-type
+  +--ro talkers-list* [talker-id]
+  |  +--ro talker-id                       uint8
+  |  +--ro stream-rank
+  |  |  +--ro rank?   uint8
+  |  +--ro end-station-interfaces* [mac-address interface-name]
+  |  |  +--ro mac-address       string
+  |  |  +--ro interface-name    string
+  |  +--ro data-frame-specification* [index]
+  |  |  +--ro index                          uint8
+  |  |  +--ro (field)?
+  |  |     +--:(ieee802-mac-addresses)
+  |  |     |  +--ro ieee802-mac-addresses
+  |  |     |     +--ro destination-mac-address?   string
+  |  |     |     +--ro source-mac-address?        string
+  |  |     +--:(ieee802-vlan-tag)
+  |  |     |  +--ro ieee802-vlan-tag
+  |  |     |     +--ro priority-code-point?   uint8
+  |  |     |     +--ro vlan-id?               uint16
+  |  |     +--:(ipv4-tuple)
+  |  |     |  +--ro ipv4-tuple
+  |  |     |     +--ro source-ip-address?        inet:ipv4-address
+  |  |     |     +--ro destination-ip-address?   inet:ipv4-address
+  |  |     |     +--ro dscp?                     uint8
+  |  |     |     +--ro protocol?                 uint16
+  |  |     |     +--ro source-port?              uint16
+  |  |     |     +--ro destination-port?         uint16
+  |  |     +--:(ipv6-tuple)
+  |  |        +--ro ipv6-tuple
+  |  |           +--ro source-ip-address?        inet:ipv6-address
+  |  |           +--ro destination-ip-address?   inet:ipv6-address
+  |  |           +--ro dscp?                     uint8
+  |  |           +--ro protocol?                 uint16
+  |  |           +--ro source-port?              uint16
+  |  |           +--ro destination-port?         uint16
+  |  +--ro traffic-specification
+  |  |  +--ro interval
+  |  |  |  +--ro numerator?     uint32
+  |  |  |  +--ro denominator?   uint32
+  |  |  +--ro max-frames-per-interval?   uint16
+  |  |  +--ro max-frame-size?            uint16
+  |  |  +--ro transmission-selection?    uint8
+  |  |  +--ro time-aware!
+  |  |     +--ro earliest-transmit-offset?   uint32
+  |  |     +--ro latest-transmit-offset?     uint32
+  |  |     +--ro jitter?                     uint32
+  |  +--ro user-to-network-requirements
+  |  |  +--ro num-seamless-trees?   uint8
+  |  |  +--ro max-latency?          uint32
+  |  +--ro interface-capabilities
+  |     +--ro vlan-tag-capable?           boolean
+  |     +--ro cb-stream-iden-type-list*   uint32
+  |     +--ro cb-sequence-type-list*      uint32
+  +--ro listeners-list* [listener-id]
+  |  +--ro listener-id                     uint8
+  |  +--ro end-station-interfaces* [mac-address interface-name]
+  |  |  +--ro mac-address       string
+  |  |  +--ro interface-name    string
+  |  +--ro user-to-network-requirements
+  |  |  +--ro num-seamless-trees?   uint8
+  |  |  +--ro max-latency?          uint32
+  |  +--ro interface-capabilities
+  |     +--ro vlan-tag-capable?           boolean
+  |     +--ro cb-stream-iden-type-list*   uint32
+  |     +--ro cb-sequence-type-list*      uint32
+  +--rw streams-list* [stream-id]
+     +--rw stream-id            tsn-types:stream-id-type
+     +--rw talker-status
+     |  +--rw talker-id?                 uint8
+     |  +--rw accumulated-latency?       uint32
+     |  +--rw interface-configuration
+     |     +--rw interface-list* [mac-address interface-name]
+     |        +--rw mac-address       string
+     |        +--rw interface-name    string
+     |        +--rw config-list* [index]
+     |           +--rw index                          uint8
+     |           +--rw (config-value)?
+     |              +--:(ieee802-mac-addresses)
+     |              |  +--rw ieee802-mac-addresses
+     |              |     +--rw destination-mac-address?   string
+     |              |     +--rw source-mac-address?        string
+     |              +--:(ieee802-vlan-tag)
+     |              |  +--rw ieee802-vlan-tag
+     |              |     +--rw priority-code-point?   uint8
+     |              |     +--rw vlan-id?               uint16
+     |              +--:(ipv4-tuple)
+     |              |  +--rw ipv4-tuple
+     |              |     +--rw source-ip-address?        inet:ipv4-address
+     |              |     +--rw destination-ip-address?   inet:ipv4-address
+     |              |     +--rw dscp?                     uint8
+     |              |     +--rw protocol?                 uint16
+     |              |     +--rw source-port?              uint16
+     |              |     +--rw destination-port?         uint16
+     |              +--:(ipv6-tuple)
+     |              |  +--rw ipv6-tuple
+     |              |     +--rw source-ip-address?        inet:ipv6-address
+     |              |     +--rw destination-ip-address?   inet:ipv6-address
+     |              |     +--rw dscp?                     uint8
+     |              |     +--rw protocol?                 uint16
+     |              |     +--rw source-port?              uint16
+     |              |     +--rw destination-port?         uint16
+     |              +--:(time-aware-offset)
+     |                 +--rw time-aware-offset?       uint32
+     +--rw listeners-status
+     |  +--rw listeners-status-list* [listener-id]
+     |     +--rw listener-id                uint8
+     |     +--rw accumulated-latency?       uint32
+     |     +--rw interface-configuration
+     |        +--rw interface-list* [mac-address interface-name]
+     |           +--rw mac-address       string
+     |           +--rw interface-name    string
+     |           +--rw config-list* [index]
+     |              +--rw index                          uint8
+     |              +--rw (config-value)?
+     |                 +--:(ieee802-mac-addresses)
+     |                 |  +--rw ieee802-mac-addresses
+     |                 |     +--rw destination-mac-address?   string
+     |                 |     +--rw source-mac-address?        string
+     |                 +--:(ieee802-vlan-tag)
+     |                 |  +--rw ieee802-vlan-tag
+     |                 |     +--rw priority-code-point?   uint8
+     |                 |     +--rw vlan-id?               uint16
+     |                 +--:(ipv4-tuple)
+     |                 |  +--rw ipv4-tuple
+     |                 |     +--rw source-ip-address?        inet:ipv4-address
+     |                 |     +--rw destination-ip-address?   inet:ipv4-address
+     |                 |     +--rw dscp?                     uint8
+     |                 |     +--rw protocol?                 uint16
+     |                 |     +--rw source-port?              uint16
+     |                 |     +--rw destination-port?         uint16
+     |                 +--:(ipv6-tuple)
+     |                 |  +--rw ipv6-tuple
+     |                 |     +--rw source-ip-address?        inet:ipv6-address
+     |                 |     +--rw destination-ip-address?   inet:ipv6-address
+     |                 |     +--rw dscp?                     uint8
+     |                 |     +--rw protocol?                 uint16
+     |                 |     +--rw source-port?              uint16
+     |                 |     +--rw destination-port?         uint16
+     |                 +--:(time-aware-offset)
+     |                    +--rw time-aware-offset?       uint32
+     +--rw status-info
+     |  +--rw talker-status?     enumeration
+     |  +--rw listener-status?   enumeration
+     |  +--rw failure-code?      uint8
+     +--rw failed-interfaces* [mac-address interface-name]
+        +--rw mac-address       string
+        +--rw interface-name    string

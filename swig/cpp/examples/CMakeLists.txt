@@ -1,4 +1,5 @@
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
+include_directories("${CMAKE_SOURCE_DIR}/examples/plugins")
 
 add_executable(cpp_get_item_example cpp_get_item_example.cpp)
 add_executable(cpp_set_item_example cpp_set_item_example.cpp)
@@ -10,6 +11,13 @@ add_executable(cpp_application_changes_example cpp_application_changes_example.c
 add_executable(cpp_rpc_example cpp_rpc_example.cpp)
 add_executable(cpp_turing_rpc_example cpp_turing_rpc_example.cpp)
 
+
+add_executable(cpp_shmem_example shmem.cpp)
+add_library(cpp_tsn_cuc_dect tsn-cuc-dect.cpp)
+add_library(cpp_tsn_cuc_tests tsn-cuc-tests.cpp)
+
+target_link_libraries(cpp_shmem_example -lrt -lpthread)
+target_link_libraries(cpp_tsn_cuc_dect -lrt -lpthread)
 target_link_libraries(cpp_get_item_example Sysrepo-cpp)
 target_link_libraries(cpp_set_item_example Sysrepo-cpp)
 target_link_libraries(cpp_get_items_example Sysrepo-cpp)
