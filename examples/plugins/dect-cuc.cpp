@@ -1,6 +1,4 @@
-#include <boost/interprocess/managed_shared_memory.hpp>
-// demangle test
-// #include <boost/core/demangle.hpp>
+
 
 #ifndef SYSREPO
 #define SYSREPO
@@ -23,8 +21,6 @@ volatile pthread_t reading_tid;
 sr_subscription_ctx_t *subscription;
 /* Identifier for shared memory */
 int shmid;
-/* Pointer for shared memory */
-struct device_t *ptr;
 
 // make sure there is no name-mangeling when linking
 extern "C" {
@@ -39,6 +35,9 @@ static int change_cb(sr_session_ctx_t *session, const char *module_name, sr_noti
 static void *reading(void *arg);
 // void sr_print_type(sr_type_t type);
 
+
+
+
 /*
     @brief perform all initialization tasks
     Read and apply the current startup configuration
@@ -49,6 +48,116 @@ static void *reading(void *arg);
 int sr_plugin_init_cb(sr_session_ctx_t *session, void **private_ctx)
 {
     SRP_LOG_INF_MSG("dect ule in initialization");
+
+    boost::interprocess::shared_memory_object::remove("MySharedMemory");
+
+    //Create shared memory
+    boost::interprocess::managed_shared_memory segment(boost::interprocess::create_only,"MySharedMemory", 65536);
+
+    //An allocator convertible to any allocator<T, segment_manager_t> type
+    void_allocator alloc_inst (segment.get_segment_manager());
+
+    void_allocator alloc(segment.get_segment_manager());
+    end_station_t_shm* asd = segment.construct<end_station_t_shm>("testing")(2, alloc);
+    std::pair<end_station_t_shm*, std::size_t> wtf = segment.find<end_station_t_shm>("testing");
+
+    if(wtf.first)
+    {   
+        end_station_interface_t test;
+        test.interface_name = "test1";
+        test.mac_address = "test1mac";
+        end_station_interface_t test2;
+        test2.interface_name = "test2interfacename";
+        test2.mac_address = "test2macaddress";
+        wtf.first->end_station_interface_list.push_front(test);
+        wtf.first->end_station_interface_list.push_front(test2);
+        (wtf.first)->interface_capabilities.cb_stream_iden_type_list.push_back(1);
+        (wtf.first)->interface_capabilities.cb_stream_iden_type_list.push_back(2);
+        (wtf.first)->interface_capabilities.cb_stream_iden_type_list.push_back(3);
+        (wtf.first)->interface_capabilities.cb_stream_iden_type_list.push_back(4);
+        (wtf.first)->interface_capabilities.cb_stream_iden_type_list.push_back(5);
+        (wtf.first)->interface_capabilities.cb_sequence_type_list.push_back(6);
+        (wtf.first)->interface_capabilities.cb_sequence_type_list.push_back(7);
+        (wtf.first)->interface_capabilities.cb_sequence_type_list.push_back(8);
+        (wtf.first)->interface_capabilities.cb_sequence_type_list.push_back(9);
+        (wtf.first)->interface_capabilities.cb_sequence_type_list.push_back(10);
+        auto it = wtf.first->end_station_interface_list.begin();
+            cout << wtf.first->end_station_interface_list.size() << "is the size\n";
+            cout << (*it).interface_name << " and " << (*it).mac_address << "\n";
+            it++;
+            cout << (*it).interface_name << " and " << (*it).mac_address << "\n";
+    }
+    else
+        cout << "NOT FOUND!\n";
+
+    // traffic_specification_t ts;
+    // ts.interval.denominator = 1;
+    // ts.interval.numerator = 2;
+    // ts.max_frame_size = 3;
+    // ts.max_frames_per_interval = 4;
+    // ts.time_aware.earliest_transmit_offset = 5;
+    // ts.time_aware.jitter = 6;
+    // ts.time_aware.latest_transmit_offset = 7;
+    // ts.transmission_selection = 123;
+    // user_to_network_requirements_t utnr;
+    // utnr.max_latency = 8;
+    // utnr.num_seamless_trees = 9;
+
+    talker_t_shm* asd2 = segment.construct<talker_t_shm>("testing2")(2, alloc);
+
+        // talker_t_shm(int id, int rank, traffic_specification_t traffic_specification,
+        // user_to_network_requirements_t user_to_network_requirements, 
+        // interface_capabilities_t interface_capabilities, const void_allocator &alloc);
+
+    std::pair<talker_t_shm*, std::size_t> wtf2 = segment.find<talker_t_shm>("testing2");
+
+    if(wtf2.first)
+    {   
+        end_station_interface_t test;
+        test.interface_name = "test1";
+        test.mac_address = "test1mac";
+        end_station_interface_t test2;
+        test2.interface_name = "test2interfacename";
+        test2.mac_address = "test2macaddress";
+        wtf2.first->end_station_interface_list.push_front(test);
+        wtf2.first->end_station_interface_list.push_front(test2);
+        auto it = wtf2.first->end_station_interface_list.begin();
+            cout << wtf2.first->end_station_interface_list.size() << "is the size\n";
+            cout << (*it).interface_name << " and " << (*it).mac_address << "\n";
+            it++;
+            cout << (*it).interface_name << " and " << (*it).mac_address << "\n";
+        choice_t_shm c1;
+        c1.str1 = "test";
+        c1.str2 = "test2";
+        c1.val1 = 1;
+        c1.val2 = 2;
+        c1.val3 = 3;
+        c1.val4 = 4;  
+        c1.field = 1;      
+        data_frame_specification_t_shm dfs1(c1);
+        choice_t_shm c2;
+        c2.str1 = "testing";
+        c2.str2 = "testing2";
+        c2.val1 = 10;
+        c2.val2 = 20;
+        c2.val3 = 30;
+        c2.val4 = 40;   
+        c2.field = 2;     
+        data_frame_specification_t_shm dfs2(c2);
+        wtf2.first->data_frame_specification_list.push_back(dfs1);
+        wtf2.first->data_frame_specification_list.push_back(dfs2);
+        wtf2.first->interface_capabilities.cb_sequence_type_list.push_back(1);
+        wtf2.first->interface_capabilities.cb_sequence_type_list.push_back(2);
+        wtf2.first->interface_capabilities.cb_sequence_type_list.push_back(3);
+        wtf2.first->interface_capabilities.cb_sequence_type_list.push_back(4);
+        wtf2.first->interface_capabilities.cb_sequence_type_list.push_back(5);
+        wtf2.first->interface_capabilities.cb_stream_iden_type_list.push_back(7);
+        wtf2.first->interface_capabilities.cb_stream_iden_type_list.push_back(9);
+        wtf2.first->interface_capabilities.cb_stream_iden_type_list.push_back(10);
+    }
+    else
+        cout << "NOT FOUND!\n";
+
     // initialize return code
     int rc = -1;
     /* session of our plugin, can be used until cleanup is called */
@@ -61,39 +170,56 @@ int sr_plugin_init_cb(sr_session_ctx_t *session, void **private_ctx)
 
     // create the shared memory
     boost::interprocess::managed_shared_memory managed_shm{boost::interprocess::create_only, "cuc-dect", 1024};
-    // module_t *module = managed_shm.construct<module_t>("tsn-cuc-dect-module")();
-    device_t *i = managed_shm.construct<device_t>("device")("asd", 1234);
-    std::cout << (*i).getName() << "\n";
-    std::pair<device_t*, std::size_t> p = managed_shm.find_no_lock<device_t>("device");
+    boost::interprocess::managed_shared_memory::segment_manager *mgr = managed_shm.get_segment_manager();
+    SRP_LOG_DBG_MSG("Shared Memory available"); 
+
+    List<device_t> *list = managed_shm.construct<List<device_t>>("devicelist")(mgr);
+
+    // List<device_t> *devicesList = managed_shm.construct<List<device_t>>("devicesList")(mgr);
+    // List<talker_t> *talkersList = managed_shm.construct<List<talker_t>>("talkersList")(mgr);
+    // module_t *module = managed_shm.construct<module_t>("module")(devicesList, talkersList);
+    // module_t *module = managed_shm.construct<module_t>("module")(managed_shm, mgr);
+    talker_t *talker;
+
+    device_t test("device1", 1);
+    device_t test2("device2", 2);
+    device_t test3("device3", 3);
+    device_t test4("device4", 4);
+
+    // std::pair<module_t*, std::size_t> p = managed_shm.find<module_t>("module");
+    std::pair<List<device_t>*, std::size_t> p = managed_shm.find<List<device_t>>("devicelist");
+
+    // *(p.first)->devicesList = *devicesList;
+    // module->devicesList = devicesList;
+
     if (p.first)
     {
-        // (p.first)->name2 = "test";
-        // std::cout << (p.first)->getName() << '\n';
-        std::cout << &((p.first)->id) << "\n";
+        (*(p.first)).push_back(test);
+        (*(p.first)).push_back(test2);
+        (*(p.first)).push_back(test3);
+        (*(p.first)).push_back(test4);
+        cout << "Devices in List: " << (*(p.first)).size() << "\n";
+        // (*(p.first)).test = 5;
+        // cout << "address of module " << &(*(p.first)) << "\n";
+        // cout << "address of devices list" << &(*(p.first)->devicesList) << "\n";
+        // cout << "test " << (*(p.first)).test << "\n";
+        // module->addDevice(test);
+        // module->addDevice(test2);
+        // module->addDevice(test3);
+        // module->addDevice(test4);
+        // cout << "size of lists: " << ((*(p.first)->devicesList).size()) << " and " << module->devicesList->size() << "\n";
     }
-    while(true)
-    {
-        // SRP_LOG_INF_MSG("Reading from shared memory");
-        // std::pair<module_t*, std::size_t> p = managed_shm.find<module_t>("tsn-cuc-dect-module");
-        // if (p.first)
-        // {
-        //     SRP_LOG_INF_MSG("found!");
-        //     std::cout << "The id: " << (*(p.first->devicesList.begin())).getPmid() << "\n";
-        //     break;
-        // }
-    }
-    
-    // std::list<int> list;
-    // list.push_back(9);
-    // demangle?
 
-    // device_t device("test", 12345);
 
-    // std::pair<module_t*, std::size_t> p = managed_shm.find<module_t>("tsn-cuc-dect-module");
+    // std::cout << "here comes the segmentation fault!\n";
 
-    // module->devicesList.push_back(device);
-    // int *i = managed_shm.construct<int>("Integer")(22);
-    SRP_LOG_DBG_MSG("Shared Memory available"); 
+    // List<end_station_interface_t> *end_station_interface_list = managed_shm.construct<List<end_station_interface_t>>("es1")();
+    // List<data_frame_specification_t> *data_frame_specification_list = managed_shm.construct<List<data_frame_specification_t>>("df1")();    
+    // *talker = talker_t(data_frame_specification_list, end_station_interface_list);
+    // std::cout << "or not?\n";
+    // talker->id = 0;
+    // module->addTalker(*talker);
+    // std::pair<List<device_t>*, std::size_t> p = managed_shm.find<List<device_t>>("devicelist");
 
 
     // Threading
@@ -138,7 +264,7 @@ static void *reading(void *arg)
     while (reading_tid) {
         /* buffer for shared memory */
         // shmat to attach to shared memory 
-        ptr = (struct device_t*) shmat(shmid,(void*)0,0);
+        // ptr = (struct device_t*) shmat(shmid,(void*)0,0);
         //int id = ptr->id;
         //pmid_t pmid = ptr->pmid;
         //printf("Data read from memory: %d, %d\n", id, pmid); 
@@ -251,7 +377,7 @@ static int change_cb(sr_session_ctx_t *session, const char *module_name, sr_noti
 void sr_plugin_cleanup_cb(sr_session_ctx_t *session, void *private_ctx) 
 {
     // detach from shared memory  
-    shmdt(ptr); 
+    // shmdt(ptr); 
 
     // destroy the shared memory 
     shmctl(shmid,IPC_RMID,NULL); 

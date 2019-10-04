@@ -9,39 +9,39 @@ using namespace std;
     Helpers
 */
 template <class T>
-int removeEntryFromList(std::list<T> &list, uint entry)
+int removeEntryFromList(List<T> *list, uint entry)
 {
-    if ((list.size() <= entry) || (entry < 0))
+    if ((list->size() <= entry) || (entry < 0))
         return 0;
-    typename std::list<T>::iterator it = list.begin();
+    typename List<T>::iterator it = list->begin();
     for (uint i = 0; i < entry; i++)
         it++;
-    list.erase(it);
+    list->erase(it);
     return 1;
 }
 template <class T>
-int removeIdFromList(std::list<T> &list, int id)
+int removeIdFromList(List<T> *list, int id)
 {
-    auto it = list.begin();
-    for (uint i = 0; i<list.size(); i++)
+    auto it = list->begin();
+    for (uint i = 0; i<list->size(); i++)
     {
         if ((*it).getId() == id)
         {
-            list.erase(it);
+            list->erase(it);
             return 1;
         }
     }
     return 0;
 }
 template <class T>
-int removeIndexFromList(std::list<T> &list, int index)
+int removeIndexFromList(List<T> *list, int index)
 {
-    auto it = list.begin();
-    for (uint i = 0; i<list.size(); i++)
+    auto it = list->begin();
+    for (uint i = 0; i<list->size(); i++)
     {
         if ((*it).index == index)
         {
-            list.erase(it);
+            list->erase(it);
             return 1;
         }
     }
@@ -72,10 +72,10 @@ bool contains(std::list<T> list, T x)
 	}
 	return false;
 }
-bool containsInterfaceName(std::list<end_station_interface_t> list, end_station_interface_t interface)
+bool containsInterfaceName(List<end_station_interface_t> *list, end_station_interface_t interface)
 {
-    auto it = list.begin();
-    for (uint i = 0; i<list.size(); i++)
+    auto it = list->begin();
+    for (uint i = 0; i<list->size(); i++)
     {
         if ((*it).interface_name.compare(interface.interface_name) == 0)
             return true;
@@ -100,10 +100,10 @@ bool isxnumber(std::string input)
     @param[in,out] references to devices list and the iterator
     @return 0 for failure, 1 if successfull
 */
-int checkId(int id, std::list<device_t> &devices, std::list<device_t>::iterator &it)
+int checkId(int id, List<device_t> *devices, List<device_t>::iterator &it)
 {
-    it = devices.begin();
-    for (uint i = 0; i<devices.size(); i++)
+    it = devices->begin();
+    for (uint i = 0; i<devices->size(); i++)
         {
             if (id == ((device_t)(*it)).getId())
                 return 1;
@@ -428,37 +428,43 @@ talker_t::talker_t(int id, int rank, traffic_specification_t traffic_specificati
     this->traffic_specification = traffic_specification;
     this->user_to_network_requirements = user_to_network_requirements;
     this->interface_capabilities = interface_capabilities;
-    this->end_station_interface_list.clear();
-    this->data_frame_specification_list.clear();
+    this->end_station_interface_list->clear();
+    this->data_frame_specification_list->clear();
 }
 /*
     @brief dummy constructor
 */
 talker_t::talker_t()
 {
-    int id = -1;
-    int rank = -1;
-    traffic_specification_t traffic_specification;
-    interval_t interval;
-    traffic_specification.interval = interval;
-    traffic_specification.max_frame_size = -1;
-    traffic_specification.max_frames_per_interval = -1;
-    traffic_specification.time_aware.earliest_transmit_offset = -1;
-    traffic_specification.time_aware.jitter = -1;
-    traffic_specification.time_aware.latest_transmit_offset = -1;
-    traffic_specification.transmission_selection = -1;
-    user_to_network_requirements_t user_to_network_requirements;
-    user_to_network_requirements.max_latency = -1;
-    user_to_network_requirements.num_seamless_trees = -1;
-    interface_capabilities_t interface_capabilities;
-    interface_capabilities.vlan_tag_capable = false;
-    this->id = id;
-    this->stream_rank.rank = rank;
-    this->traffic_specification = traffic_specification;
-    this->user_to_network_requirements = user_to_network_requirements;
-    this->interface_capabilities = interface_capabilities;
-    this->end_station_interface_list.clear();
-    this->data_frame_specification_list.clear();
+
+}
+talker_t::talker_t(List<data_frame_specification_t> *data_frame_specification_list, List<end_station_interface_t> *end_station_interface_list)
+{
+    this->data_frame_specification_list = data_frame_specification_list;
+    this->end_station_interface_list = end_station_interface_list;
+    // int id = -1;
+    // int rank = -1;
+    // traffic_specification_t traffic_specification;
+    // interval_t interval;
+    // traffic_specification.interval = interval;
+    // traffic_specification.max_frame_size = -1;
+    // traffic_specification.max_frames_per_interval = -1;
+    // traffic_specification.time_aware.earliest_transmit_offset = -1;
+    // traffic_specification.time_aware.jitter = -1;
+    // traffic_specification.time_aware.latest_transmit_offset = -1;
+    // traffic_specification.transmission_selection = -1;
+    // user_to_network_requirements_t user_to_network_requirements;
+    // user_to_network_requirements.max_latency = -1;
+    // user_to_network_requirements.num_seamless_trees = -1;
+    // interface_capabilities_t interface_capabilities;
+    // interface_capabilities.vlan_tag_capable = false;
+    // this->id = id;
+    // this->stream_rank.rank = rank;
+    // this->traffic_specification = traffic_specification;
+    // this->user_to_network_requirements = user_to_network_requirements;
+    // this->interface_capabilities = interface_capabilities;
+    // this->end_station_interface_list->clear();
+    // this->data_frame_specification_list->clear();
 }
 
 /*
@@ -491,7 +497,7 @@ int end_station_t::add_interface(end_station_interface_t interface)
 {
     if (containsInterfaceName(this->end_station_interface_list, interface))
         return 0;
-    this->end_station_interface_list.push_back(interface);
+    this->end_station_interface_list->push_back(interface);
     return 1;
 }
 int end_station_t::getId()
@@ -508,8 +514,8 @@ int end_station_t::getId()
 */
 int talker_t::add_specification(data_frame_specification_t specification)
 {
-    specification.index = this->data_frame_specification_list.size();
-    this->data_frame_specification_list.push_back(specification);
+    specification.index = this->data_frame_specification_list->size();
+    this->data_frame_specification_list->push_back(specification);
     return 1;
 }
 void talker_t::printData()
@@ -518,13 +524,13 @@ void talker_t::printData()
     cout << "\ttalker-id: " << this->id << "\n";
     cout << "\tstream-rank:\n\t\trank: " << this->stream_rank.rank << "\n";
     cout << "\tend-station-interfaces:\n";
-    for (std::list<end_station_interface_t>::iterator it = this->end_station_interface_list.begin(); 
-        it != this->end_station_interface_list.end(); it++)
-        cout << "\t\t" << std::distance(this->end_station_interface_list.begin(), it) << "\n\t\t\tname: " 
+    for (List<end_station_interface_t>::iterator it = this->end_station_interface_list->begin(); 
+        it != this->end_station_interface_list->end(); it++)
+        cout << "\t\t" << std::distance(this->end_station_interface_list->begin(), it) << "\n\t\t\tname: " 
             << (*it).interface_name << "\n\t\t\taddress " << (*it).mac_address << "\n"; 
     cout << "\tdata-frame-specification:\n";
-    for (std::list<data_frame_specification_t>::iterator it = this->data_frame_specification_list.begin();
-        it != this->data_frame_specification_list.end(); it++)
+    for (List<data_frame_specification_t>::iterator it = this->data_frame_specification_list->begin();
+        it != this->data_frame_specification_list->end(); it++)
         if ((*it).choice.field == MAC)
             cout << "\t\tindex: " << (*it).index << "\n\t\t\tieee802-mac-addresses\n\t\t\t\tsource_mac_address: " << 
                 (*it).choice.str1 << "\n\t\t\t\tdestination_mac_address: "<< (*it).choice.str2 << "\n";
@@ -580,11 +586,10 @@ device_t::device_t(std::string name, pmid_t pmid)
 {
     this->id = this->count;
     this->count++;
-    // this->name2.append("test");
-    this->name2.append(name.c_str());
+    this->name.append(name.c_str());
     this->pmid = pmid;
 }
-std::string device_t::getName()
+boost::container::string device_t::getName()
 {
     return this->name;
 }
@@ -600,9 +605,22 @@ pmid_t device_t::getPmid()
 /*
     Module_t functions
 */
+// module_t::module_t(List<device_t> *devicesList, List<talker_t> *talkersList, boost::interprocess::managed_shared_memory managed_shm)
+module_t::module_t(List<device_t> *devicesList, List<talker_t> *talkersList)
+// module_t::module_t(boost::interprocess::managed_shared_memory &managed_shm, boost::interprocess::managed_shared_memory::segment_manager *mgr)
+{
+    // List<device_t> *devicesList = managed_shm.construct<List<device_t>>("devicesList")(mgr);
+    // List<talker_t> *talkersList = managed_shm.construct<List<talker_t>>("talkersList")(mgr);
+    this->devicesList = devicesList;
+    this->talkersList = talkersList;
+}
+// module_t::module_t(List<device_t> *devicesList)
+// {
+//     this->devicesList = devicesList;
+// }
 int module_t::addDevice(device_t device)
 {
-    this->devicesList.push_back(device);
+    this->devicesList->push_back(device);
     return 1;
 }
 
@@ -613,7 +631,7 @@ int module_t::removeDevice(int id)
 
 int module_t::addTalker(talker_t talker)
 {
-    this->talkersList.push_back(talker);
+    this->talkersList->push_back(talker);
     return 1;
 }
 
@@ -624,11 +642,78 @@ int module_t::removeTalker(int id)
 
 int module_t::addListener(listener_t listener)
 {
-    this->listenersList.push_back(listener);
+    this->listenersList->push_back(listener);
     return 1;
 }
 
 int module_t::removeListener(int id)
 {
     return removeIdFromList(this->listenersList, id);
+}
+
+/*
+    SHM functions
+*/
+data_frame_specification_t_shm::data_frame_specification_t_shm(choice_t_shm choice) 
+{
+    this->index = -1;
+    this->choice = choice;
+}
+
+
+void talker_t_shm::printData()
+{
+    cout << "\n!---- PRINTING TALKER DATA ----!\n\n";
+    cout << "\ttalker-id: " << this->id << "\n";
+    cout << "\tstream-rank:\n\t\trank: " << this->stream_rank.rank << "\n";
+    cout << "\tend-station-interfaces:\n";
+    for (auto it = this->end_station_interface_list.begin(); 
+        it != this->end_station_interface_list.end(); it++)
+        cout << "\t\t" << std::distance(this->end_station_interface_list.begin(), it) << "\n\t\t\tname: " 
+            << (*it).interface_name << "\n\t\t\taddress " << (*it).mac_address << "\n"; 
+    cout << "\tdata-frame-specification:\n";
+    for (auto it = this->data_frame_specification_list.begin();
+        it != this->data_frame_specification_list.end(); it++)
+        if ((*it).choice.field == MAC)
+            cout << "\t\tindex: " << (*it).index << "\n\t\t\tieee802-mac-addresses\n\t\t\t\tsource_mac_address: " << 
+                (*it).choice.str1 << "\n\t\t\t\tdestination_mac_address: "<< (*it).choice.str2 << "\n";
+        else if ((*it).choice.field == VLAN)
+            cout << "\t\tindex: " << (*it).index << "\n\t\t\tieee802-vlan-tag\n\t\t\t\tpcp: " << (*it).choice.val1 << 
+                "\n\t\t\t\tvlan_id: " << (*it).choice.val2 << "\n";
+        else if ((*it).choice.field == IPV4)
+            cout << "\t\tindex: " << (*it).index << "\n\t\t\tipv4-tuple\n\t\t\t\tipv4_source_ip_address: " << (*it).choice.str1 << 
+                "\n\t\t\t\tipv4_destination_ip_address: "<< (*it).choice.str2 << "\n\t\t\t\tdscp: " << (*it).choice.val1 << 
+                "\n\t\t\t\tprotocol: " << (*it).choice.val2 << "\n\t\t\t\tsource_port: " << (*it).choice.val3 << 
+                "\n\t\t\t\tdestination_port: " << (*it).choice.val4 << "\n";
+        else if ((*it).choice.field == IPV6)
+            cout << "\t\tindex: " << (*it).index << "\n\t\t\tipv6-tuple\n\t\t\t\tipv6_source_ip_address: " << (*it).choice.str1 << 
+                "\n\t\t\t\tipv6_destination_ip_address: "<< (*it).choice.str2 << "\n\t\t\t\tdscp: " << (*it).choice.val1 << 
+                "\n\t\t\t\tprotocol: " << (*it).choice.val2 << "\n\t\t\t\tsource_port: " << (*it).choice.val3 << 
+                "\n\t\t\t\tdestination_port: " << (*it).choice.val4 << "\n";
+        else
+            break;
+    cout << "\ttraffic-specification:\n";
+    cout << "\t\tinterval: " << this->traffic_specification.interval.numerator << "/" << this->traffic_specification.interval.denominator << "\n";
+    cout << "\t\tmax-frames-per-interval: " << this->traffic_specification.max_frames_per_interval << "\n";
+    cout << "\t\tmax-frame-size: " << this->traffic_specification.max_frame_size << "\n";
+    cout << "\t\ttransmission-selection: " << this->traffic_specification.transmission_selection << "\n";
+    cout << "\t\ttime-aware:\n\t\t\tearliest transmit offset: " << this->traffic_specification.time_aware.earliest_transmit_offset << 
+        "\n\t\t\tlatest-transmit-offset: " << this->traffic_specification.time_aware.latest_transmit_offset << "\n\t\t\tjitter: " << 
+        this->traffic_specification.time_aware.jitter << "\n";
+    cout << "\tuser-to-network-requirements:\n";
+    cout << "\t\tnum-seamless-trees: " << this->user_to_network_requirements.num_seamless_trees << "\n\t\tmax-latency: " <<
+        this->user_to_network_requirements.max_latency << "\n";
+    cout << "\tinterface-capabilities:\n";
+    cout << "\t\tvlan-tag-capable: " << this->interface_capabilities.vlan_tag_capable << "\n";
+    cout << "\t\tcb-stream-iden-type-list:\n";
+    for (auto it = this->interface_capabilities.cb_stream_iden_type_list.begin();
+        it != this->interface_capabilities.cb_stream_iden_type_list.end(); it++)
+        cout << "\t\t\t" << std::distance(this->interface_capabilities.cb_stream_iden_type_list.begin(), it) <<
+            " : " << (*it) << "\n";
+    cout << "\t\tcb-sequence-type-list:\n";
+    for (auto it = this->interface_capabilities.cb_sequence_type_list.begin();
+        it != this->interface_capabilities.cb_sequence_type_list.end(); it++)    
+        cout << "\t\t\t" << std::distance(this->interface_capabilities.cb_sequence_type_list.begin(), it) <<
+            " : " << (*it) << "\n";
+    cout << "\n!---- END OF TALKER DATA ---!\n";
 }

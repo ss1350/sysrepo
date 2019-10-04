@@ -1,9 +1,20 @@
-#include <boost/interprocess/managed_shared_memory.hpp>
 #include <iostream> 
 #include <sys/ipc.h> 
 #include <sys/shm.h> 
 #include <stdio.h> 
 #include <unistd.h>
+
+#ifndef IPC
+#define IPC
+#include <boost/interprocess/containers/string.hpp>
+#include <boost/interprocess/containers/list.hpp>
+#include <boost/interprocess/managed_shared_memory.hpp>
+#include <boost/interprocess/allocators/allocator.hpp>
+#include <boost/interprocess/containers/map.hpp>
+#include <boost/interprocess/containers/vector.hpp>
+template <typename T> using Alloc = boost::interprocess::allocator<T, boost::interprocess::managed_shared_memory::segment_manager>;
+template <typename K> using List = boost::interprocess::list<K, Alloc<K>>;
+#endif
 
 // remove the define to disable testing
 #ifndef CATCH_CONFIG_RUNNER
@@ -18,11 +29,9 @@
 #include "tsn-cuc-dect.cpp"
 #endif
 
-
 using namespace std; 
 
-
-int createTalker(module_t &module)
+int createTalker(List<device_t> &devicesList, talker_t &talker)
 {
     std::string input;
     
@@ -30,8 +39,16 @@ int createTalker(module_t &module)
     user_to_network_requirements_t user_to_network_requirements;
     interface_capabilities_t interface_capabilities;
     int rank;
-    
-    talker_t talker;
+
+    // boost::interprocess::managed_shared_memory::segment_manager *mgr = managed_shm.get_segment_manager();
+
+    // List<end_station_interface_t> *end_station_interface_list = managed_shm.construct<List<end_station_interface_t>>("es1")(mgr);
+    // List<data_frame_specification_t> *data_frame_specification_list = managed_shm.construct<List<data_frame_specification_t>>("df1")(mgr);    
+
+    // cout << "here is an error\n";
+    // talker_t* talker;
+    // *talker = talker_t(data_frame_specification_list, end_station_interface_list);
+    // cout << "did this work?\n";
 
     int stage = 0;
     int counter;
@@ -46,12 +63,12 @@ int createTalker(module_t &module)
                 cout << "\n!---- DEVICE ID ----!\n\n";
                 cout << "Enter device ID to make talker, enter quit to exit: ";
                 cin >> input;
-                int id;
+                int id = -1;
                 if (!(readInt(input, id)))
                     break;
                 cout << "Checking ID\n";
-                auto it = module.devicesList.begin();
-                if (checkId(id, module.devicesList, it))
+                auto it = devicesList.begin();
+                if (checkId(id, &devicesList, it))
                 {
                     cout << "ID found. Belongs to " << ((device_t)*(it)).getName() << 
                         " with PMID " << ((device_t)*(it)).getPmid() << "\n";
@@ -332,8 +349,8 @@ int createTalker(module_t &module)
                     }
                     case 2: // List interfaces
                     {
-                        auto it = talker.end_station_interface_list.begin();
-                        for (uint i = 0; i < talker.end_station_interface_list.size(); i++)
+                        auto it = talker.end_station_interface_list->begin();
+                        for (uint i = 0; i < talker.end_station_interface_list->size(); i++)
                         {
                             cout << i << " - Name: " << (*it).interface_name << " Address: " << (*it).mac_address << "\n";
                             it++;
@@ -369,264 +386,264 @@ int createTalker(module_t &module)
                 }
                 break;
             }
-            case 9: // data frame specification
-            {
-                cout << "\n!---- DATA FRAME SPECIFICATION ----!\n\n";
-                cout << "Configuring data frame specifications. Add new specification: 1, List specifications: 2, delete specification: 3, continue: 4\n";
-                int choice = 0;
-                cin >> input;
-                try{
-                    choice = stoi(input);
-                } catch (const std::invalid_argument& ia) {
-                    std::cerr << "Invalid argument in input: " << ia.what() << '\n';
-                }
-                switch (choice)
-                {
-                    case 1: // add new spec
-                    {
-                        cout << "Choose field: MAC (1), VLAN (2), IPV4(3), IPV6(4)\n";
-                        int field = 0;
-                        cin >> input;
-                        try{
-                            field = stoi(input);
-                        } catch (const std::invalid_argument& ia) {
-                            std::cerr << "Invalid argument in input: " << ia.what() << '\n';
-                            break;
-                        }
-                        choice_t choice;
-                        switch (field)
-                        {
-                            case 1: // MAC
-                            {
-                                choice.field = MAC;
-                                while (true)
-                                {
-                                    cout << "MAC - Enter source MAC address:\n";
-                                    cin >> input;
-                                    if (readMac(input.c_str()))
-                                    {
-                                        *choice.source_mac_address = input;
-                                        break;
-                                    }
-                                    cout << "Wrong format. Try again.\n";
-                                }
-                                while (true)
-                                {
-                                    cout << "Enter destination MAC address:\n";
-                                    cin >> input;
-                                    if (readMac(input.c_str()))
-                                    {
-                                        *choice.destination_mac_address = input;
-                                        break;
-                                    }
-                                    cout << "Wrong format. Try again.\n";
-                                }
-                                break;
-                            }
-                            case 2: // VLAN
-                            {
-                                choice.field = VLAN;
-                                while(true)
-                                {
-                                    cout << "VLAN - Enter priority code point:\n";
-                                    cin >> input;
-                                    if (readInt(input, *choice.pcp))
-                                        break;
-                                    cout << "Wrong format. Try again.\n";
-                                }
-                                while(true)
-                                {
-                                    cout << "Enter VLAN id:\n";
-                                    cin >> input;
-                                    if (readInt(input, *choice.vlan_id))
-                                        break;
-                                    cout << "Wrong format. Try again.\n";
-                                }
-                                break;
-                            }
-                            case 3: //IPV4
-                            {
-                                choice.field = IPV4;
-                                while(true)
-                                {
-                                    cout << "IPv4 - Enter source IP address:\n";
-                                    cin >> input;
-                                    if (readIpv4(input))
-                                    {                                        
-                                        *choice.ipv4_source_ip_address = input;
-                                        break;
-                                    }
-                                    cout << "Wrong format. Try again.\n";
-                                }
-                                while(true)
-                                {
-                                    cout << "Enter source port:\n";
-                                    cin >> input;
-                                    if (readInt(input, *choice.source_port))
-                                        break;
-                                    cout << "Wrong format. Try again.\n";
-                                }
-                                while(true)
-                                {
-                                    cout << "Enter destination IP address:\n";
-                                    cin >> input;
-                                    if (readIpv4(input))
-                                    {
-                                        *choice.ipv4_destination_ip_address = input;
-                                        break;
-                                    }
-                                    cout << "Wrong format. Try again.\n";
-                                }
-                                while(true)
-                                {
-                                    cout << "Enter destination port:\n";
-                                    cin >> input;
-                                    if (readInt(input, *choice.destination_port))
-                                        break;
-                                    cout << "Wrong format. Try again.\n";
-                                }
-                                while(true)
-                                {
-                                    cout << "Enter dpsc and protocol:\n";
-                                    while(true)
-                                    {
-                                        cin >> input;
-                                        counter = 0;
-                                        inputList.clear();
-                                        if ((!getList(counter, inputList, input)) || (counter != 2))
-                                            cout << "Wrong format. Try again.\n";
-                                        else
-                                            break;
-                                    }
-                                    *choice.dscp = *(inputList.begin());
-                                    *choice.protocol = *(++(inputList.begin()));
-                                    break;
-                                }
-                                break;
-                            }
-                            case 4: // IPv6
-                            {
-                                choice.field = IPV6;
-                                while(true)
-                                {
-                                    cout << "IPv6 - Enter source address:\n";
-                                    cin >> input;
-                                    if (readIpv6(input))
-                                    {
-                                        *choice.ipv6_source_ip_address = input;
-                                        break;
-                                    }
-                                    cout << "Wrong format. Try again.\n";
-                                }
-                                while(true)
-                                {
-                                    cout << "Enter source port:\n";
-                                    cin >> input;
-                                    if (readInt(input, *choice.source_port))
-                                        break;
-                                    cout << "Wrong format. Try again.\n";
-                                }
-                                while(true)
-                                {
-                                    cout << "Enter destination address:\n";
-                                    cin >> input;
-                                    if (readIpv6(input))
-                                    {
-                                        *choice.ipv6_destination_ip_address = input;
-                                        break;
-                                    }
-                                    cout << "Wrong format. Try again.\n";
-                                }    
-                                while(true)
-                                {
-                                    cout << "Enter destination port:\n";
-                                    cin >> input;
-                                    if (readInt(input, *choice.destination_port))
-                                        break;
-                                    cout << "Wrong format. Try again.\n";
-                                }
-                                while(true)
-                                {
-                                    cout << "Enter dpsc and protocol:\n";
-                                    cin >> input;
-                                    counter = 0;
-                                    inputList.clear();
-                                    if (getList(counter, inputList, input))
-                                        if (counter == 2)
-                                            {
-                                                *choice.dscp = *(inputList.begin());
-                                                *choice.protocol = *(++(inputList.begin()));
-                                                break;
-                                            }
-                                    cout << "Wrong format. Try again.\n";
-                                }
-                                break;
-                            }
-                        }
-                        data_frame_specification_t spec(choice);
-                        talker.add_specification(spec);
-                        break;
-                    }
-                    case 2: // list specification
-                    {
-                        cout << "Listing specifications: \n";
-                        auto it = talker.data_frame_specification_list.begin();
-                        for (uint i = 0; i<talker.data_frame_specification_list.size(); i++)
-                        {
-                            if ((*it).choice.field == MAC)
-                                cout << "index: " << (*it).index << "\n\tieee802-mac-addresses\n\t\tsource_mac_address: " << 
-                                    (*it).choice.str1 << "\n\t\tdestination_mac_address: "<< (*it).choice.str2 << "\n";
-                            else if ((*it).choice.field == VLAN)
-                                cout << "index: " << (*it).index << "\n\tieee802-vlan-tag\n\t\tpcp: " << (*it).choice.val1 << 
-                                    "\n\t\tvlan_id: " << (*it).choice.val2 << "\n";
-                            else if ((*it).choice.field == IPV4)
-                                cout << "index: " << (*it).index << "\n\tipv4-tuple\n\t\tipv4_source_ip_address: " << (*it).choice.str1 << 
-                                    "\n\t\tipv4_destination_ip_address: "<< (*it).choice.str2 << "\n\t\tdscp: " << (*it).choice.val1 << 
-                                    "\n\t\tprotocol: " << (*it).choice.val2 << "\n\t\tsource_port: " << (*it).choice.val3 << 
-                                    "\n\t\tdestination_port: " << (*it).choice.val4 << "\n";
-                            else if ((*it).choice.field == IPV6)
-                                cout << "index: " << (*it).index << "\n\tipv6-tuple\n\t\tipv6_source_ip_address: " << (*it).choice.str1 << 
-                                    "\n\t\tipv6_destination_ip_address: "<< (*it).choice.str2 << "\n\t\tdscp: " << (*it).choice.val1 << 
-                                    "\n\t\tprotocol: " << (*it).choice.val2 << "\n\t\tsource_port: " << (*it).choice.val3 << 
-                                    "\n\t\tdestination_port: " << (*it).choice.val4 << "\n";
-                            it++;
-                        }
-                        break;
-                    }
-                    case 3: // delete specification
-                    {
-                        while(true)
-                        {
-                            cout << "Enter Index to be deleted:\n";
-                            cin >> input;
-                            int index;
-                            if (readInt(input, index))
-                            {
-                                if (removeIndexFromList(talker.data_frame_specification_list, index))
-                                    break;
-                                cout << "Index not found in list\n";
-                            }
-                            cout << "Wrong input. Try again.\n";
-                        }
-                        break;
-                    }
-                    case 4: // continue
-                    {
-                        cout << "Continuing...\n";
-                        stage++;
-                        break;
-                    }
-                }
-                break;
-            }
+            // case 9: // data frame specification
+            // {
+            //     cout << "\n!---- DATA FRAME SPECIFICATION ----!\n\n";
+            //     cout << "Configuring data frame specifications. Add new specification: 1, List specifications: 2, delete specification: 3, continue: 4\n";
+            //     int choice = 0;
+            //     cin >> input;
+            //     try{
+            //         choice = stoi(input);
+            //     } catch (const std::invalid_argument& ia) {
+            //         std::cerr << "Invalid argument in input: " << ia.what() << '\n';
+            //     }
+            //     switch (choice)
+            //     {
+            //         case 1: // add new spec
+            //         {
+            //             cout << "Choose field: MAC (1), VLAN (2), IPV4(3), IPV6(4)\n";
+            //             int field = 0;
+            //             cin >> input;
+            //             try{
+            //                 field = stoi(input);
+            //             } catch (const std::invalid_argument& ia) {
+            //                 std::cerr << "Invalid argument in input: " << ia.what() << '\n';
+            //                 break;
+            //             }
+            //             choice_t choice;
+            //             switch (field)
+            //             {
+            //                 case 1: // MAC
+            //                 {
+            //                     choice.field = MAC;
+            //                     while (true)
+            //                     {
+            //                         cout << "MAC - Enter source MAC address:\n";
+            //                         cin >> input;
+            //                         if (readMac(input.c_str()))
+            //                         {
+            //                             *choice.source_mac_address = input;
+            //                             break;
+            //                         }
+            //                         cout << "Wrong format. Try again.\n";
+            //                     }
+            //                     while (true)
+            //                     {
+            //                         cout << "Enter destination MAC address:\n";
+            //                         cin >> input;
+            //                         if (readMac(input.c_str()))
+            //                         {
+            //                             *choice.destination_mac_address = input;
+            //                             break;
+            //                         }
+            //                         cout << "Wrong format. Try again.\n";
+            //                     }
+            //                     break;
+            //                 }
+            //                 case 2: // VLAN
+            //                 {
+            //                     choice.field = VLAN;
+            //                     while(true)
+            //                     {
+            //                         cout << "VLAN - Enter priority code point:\n";
+            //                         cin >> input;
+            //                         if (readInt(input, *choice.pcp))
+            //                             break;
+            //                         cout << "Wrong format. Try again.\n";
+            //                     }
+            //                     while(true)
+            //                     {
+            //                         cout << "Enter VLAN id:\n";
+            //                         cin >> input;
+            //                         if (readInt(input, *choice.vlan_id))
+            //                             break;
+            //                         cout << "Wrong format. Try again.\n";
+            //                     }
+            //                     break;
+            //                 }
+            //                 case 3: //IPV4
+            //                 {
+            //                     choice.field = IPV4;
+            //                     while(true)
+            //                     {
+            //                         cout << "IPv4 - Enter source IP address:\n";
+            //                         cin >> input;
+            //                         if (readIpv4(input))
+            //                         {                                        
+            //                             *choice.ipv4_source_ip_address = input;
+            //                             break;
+            //                         }
+            //                         cout << "Wrong format. Try again.\n";
+            //                     }
+            //                     while(true)
+            //                     {
+            //                         cout << "Enter source port:\n";
+            //                         cin >> input;
+            //                         if (readInt(input, *choice.source_port))
+            //                             break;
+            //                         cout << "Wrong format. Try again.\n";
+            //                     }
+            //                     while(true)
+            //                     {
+            //                         cout << "Enter destination IP address:\n";
+            //                         cin >> input;
+            //                         if (readIpv4(input))
+            //                         {
+            //                             *choice.ipv4_destination_ip_address = input;
+            //                             break;
+            //                         }
+            //                         cout << "Wrong format. Try again.\n";
+            //                     }
+            //                     while(true)
+            //                     {
+            //                         cout << "Enter destination port:\n";
+            //                         cin >> input;
+            //                         if (readInt(input, *choice.destination_port))
+            //                             break;
+            //                         cout << "Wrong format. Try again.\n";
+            //                     }
+            //                     while(true)
+            //                     {
+            //                         cout << "Enter dpsc and protocol:\n";
+            //                         while(true)
+            //                         {
+            //                             cin >> input;
+            //                             counter = 0;
+            //                             inputList.clear();
+            //                             if ((!getList(counter, inputList, input)) || (counter != 2))
+            //                                 cout << "Wrong format. Try again.\n";
+            //                             else
+            //                                 break;
+            //                         }
+            //                         *choice.dscp = *(inputList.begin());
+            //                         *choice.protocol = *(++(inputList.begin()));
+            //                         break;
+            //                     }
+            //                     break;
+            //                 }
+            //                 case 4: // IPv6
+            //                 {
+            //                     choice.field = IPV6;
+            //                     while(true)
+            //                     {
+            //                         cout << "IPv6 - Enter source address:\n";
+            //                         cin >> input;
+            //                         if (readIpv6(input))
+            //                         {
+            //                             *choice.ipv6_source_ip_address = input;
+            //                             break;
+            //                         }
+            //                         cout << "Wrong format. Try again.\n";
+            //                     }
+            //                     while(true)
+            //                     {
+            //                         cout << "Enter source port:\n";
+            //                         cin >> input;
+            //                         if (readInt(input, *choice.source_port))
+            //                             break;
+            //                         cout << "Wrong format. Try again.\n";
+            //                     }
+            //                     while(true)
+            //                     {
+            //                         cout << "Enter destination address:\n";
+            //                         cin >> input;
+            //                         if (readIpv6(input))
+            //                         {
+            //                             *choice.ipv6_destination_ip_address = input;
+            //                             break;
+            //                         }
+            //                         cout << "Wrong format. Try again.\n";
+            //                     }    
+            //                     while(true)
+            //                     {
+            //                         cout << "Enter destination port:\n";
+            //                         cin >> input;
+            //                         if (readInt(input, *choice.destination_port))
+            //                             break;
+            //                         cout << "Wrong format. Try again.\n";
+            //                     }
+            //                     while(true)
+            //                     {
+            //                         cout << "Enter dpsc and protocol:\n";
+            //                         cin >> input;
+            //                         counter = 0;
+            //                         inputList.clear();
+            //                         if (getList(counter, inputList, input))
+            //                             if (counter == 2)
+            //                                 {
+            //                                     *choice.dscp = *(inputList.begin());
+            //                                     *choice.protocol = *(++(inputList.begin()));
+            //                                     break;
+            //                                 }
+            //                         cout << "Wrong format. Try again.\n";
+            //                     }
+            //                     break;
+            //                 }
+            //             }
+            //             data_frame_specification_t spec(choice);
+            //             talker.add_specification(spec);
+            //             break;
+            //         }
+            //         case 2: // list specification
+            //         {
+            //             cout << "Listing specifications: \n";
+            //             auto it = talker.data_frame_specification_list->begin();
+            //             for (uint i = 0; i<talker.data_frame_specification_list->size(); i++)
+            //             {
+            //                 if ((*it).choice.field == MAC)
+            //                     cout << "index: " << (*it).index << "\n\tieee802-mac-addresses\n\t\tsource_mac_address: " << 
+            //                         (*it).choice.str1 << "\n\t\tdestination_mac_address: "<< (*it).choice.str2 << "\n";
+            //                 else if ((*it).choice.field == VLAN)
+            //                     cout << "index: " << (*it).index << "\n\tieee802-vlan-tag\n\t\tpcp: " << (*it).choice.val1 << 
+            //                         "\n\t\tvlan_id: " << (*it).choice.val2 << "\n";
+            //                 else if ((*it).choice.field == IPV4)
+            //                     cout << "index: " << (*it).index << "\n\tipv4-tuple\n\t\tipv4_source_ip_address: " << (*it).choice.str1 << 
+            //                         "\n\t\tipv4_destination_ip_address: "<< (*it).choice.str2 << "\n\t\tdscp: " << (*it).choice.val1 << 
+            //                         "\n\t\tprotocol: " << (*it).choice.val2 << "\n\t\tsource_port: " << (*it).choice.val3 << 
+            //                         "\n\t\tdestination_port: " << (*it).choice.val4 << "\n";
+            //                 else if ((*it).choice.field == IPV6)
+            //                     cout << "index: " << (*it).index << "\n\tipv6-tuple\n\t\tipv6_source_ip_address: " << (*it).choice.str1 << 
+            //                         "\n\t\tipv6_destination_ip_address: "<< (*it).choice.str2 << "\n\t\tdscp: " << (*it).choice.val1 << 
+            //                         "\n\t\tprotocol: " << (*it).choice.val2 << "\n\t\tsource_port: " << (*it).choice.val3 << 
+            //                         "\n\t\tdestination_port: " << (*it).choice.val4 << "\n";
+            //                 it++;
+            //             }
+            //             break;
+            //         }
+            //         case 3: // delete specification
+            //         {
+            //             while(true)
+            //             {
+            //                 cout << "Enter Index to be deleted:\n";
+            //                 cin >> input;
+            //                 int index;
+            //                 if (readInt(input, index))
+            //                 {
+            //                     if (removeIndexFromList(talker.data_frame_specification_list, index))
+            //                         break;
+            //                     cout << "Index not found in list\n";
+            //                 }
+            //                 cout << "Wrong input. Try again.\n";
+            //             }
+            //             break;
+            //         }
+            //         case 4: // continue
+            //         {
+            //             cout << "Continuing...\n";
+            //             stage++;
+            //             break;
+            //         }
+            //     }
+            //     break;
+            // }
             case 10:    // incorporate the data into the talker object and add it to the module in shared memory
             {
-                talker.traffic_specification = traffic_specification;
-                talker.user_to_network_requirements = user_to_network_requirements;
-                talker.interface_capabilities = interface_capabilities;
-                talker.stream_rank.rank = rank;
+                // talker.traffic_specification = traffic_specification;
+                // talker.user_to_network_requirements = user_to_network_requirements;
+                // talker.interface_capabilities = interface_capabilities;
+                // talker.stream_rank.rank = rank;
                 cout << "Adding talker with id: " << talker.id << " to module...\n";
-                module.addTalker(talker);
+                // module.addTalker(*talker);
                 return 1;
             }
         }
@@ -639,52 +656,94 @@ int createListener()
     return 0;
 }
 
+
 int main( int argc, char* argv[] ) 
 {
+    //Create shared memory
+    boost::interprocess::managed_shared_memory segment(boost::interprocess::open_or_create,"MySharedMemory", 65536);
+
+    std::pair<end_station_t_shm*, std::size_t> wtf = segment.find<end_station_t_shm>("testing");
+    if(wtf.first)
+    {   
+        cout << "found it!\n";
+        auto it = wtf.first->end_station_interface_list.begin();
+        cout << wtf.first->end_station_interface_list.size() << "is the size\n";
+        cout << (*it).interface_name << " and " << (*it).mac_address << "\n";
+        it++;
+        cout << (*it).interface_name << " and " << (*it).mac_address << "\n";
+        cout << "interface capability: " << wtf.first->interface_capabilities.cb_stream_iden_type_list.size() << "size\n";
+        cout << "inhalt " << *(wtf.first->interface_capabilities.cb_stream_iden_type_list.begin()) << "\n";
+        cout << *++(wtf.first->interface_capabilities.cb_stream_iden_type_list.begin()) << " " << 
+        *++++(wtf.first->interface_capabilities.cb_stream_iden_type_list.begin()) << "\n";
+        cout << "sequence type: " << wtf.first->interface_capabilities.cb_sequence_type_list.size() << "size\n";
+        cout << "inhalt " << *(wtf.first->interface_capabilities.cb_sequence_type_list.begin()) << "\n";
+        cout << *++(wtf.first->interface_capabilities.cb_sequence_type_list.begin()) << " " << 
+        *++++(wtf.first->interface_capabilities.cb_sequence_type_list.begin()) << "\n";
+    }
+    else
+    {
+        cout << "NOT FOUND!\n";
+    }
+
+    std::pair<talker_t_shm*, std::size_t> asd = segment.find<talker_t_shm>("testing2");
+
+    if(asd.first)
+    {
+        asd.first->printData();
+        cout << "!---- what did not work: ----!\n";
+        cout << asd.first->data_frame_specification_list.size() << ">1?\n";
+    }
+    else
+        cout << "talker not found!\n";
+
+    return 0;
+
+
+
+
+
     #ifdef CATCH_CONFIG_RUNNER
     int result = 0;
     result = Catch::Session().run( argc, argv );
     return 1;
     #endif 
 
-    // boost::interprocess::shared_memory_object::remove("cuc-dect");
-    boost::interprocess::managed_shared_memory managed_shm{boost::interprocess::open_only, "cuc-dect"};
-    cout << "reading from shared memory:\n";
-    std::pair<device_t*, std::size_t> p = managed_shm.find_no_lock<device_t>("device");
+    boost::interprocess::managed_shared_memory managed_shm{boost::interprocess::open_or_create, "cuc-dect", 1024};
+    boost::interprocess::managed_shared_memory::segment_manager *mgr = managed_shm.get_segment_manager();
+
+    std::pair<List<device_t>*, std::size_t> p = managed_shm.find<List<device_t>>("devicelist");
+    // std::pair<module_t*, std::size_t> p = managed_shm.find<module_t>("module");
+    // std::pair<List<device_t>*, std::size_t> q = managed_shm.find<List<device_t>>("devicesList");
+
+
     if (p.first)
     {
-        std::cout << p.first << '\n';
-        std::cout << &((p.first)->id) << "\n";
-        std::cout << (p.first)->name2 << "\n";
-        // boost::container::string str;
-        // str.append("test");
-        std::cout << (p.first)->id << "\n";
-
-        std::cout << "the name: " <<  (p.first)->name2 << "\n";
+        auto it = (*(p.first)).begin();
+        for (uint i = 0; i < ((*(p.first)).size()); i++)
+            cout << "Reading from device list: " << (*it).getName() << " with PMID " << (*it).getPmid() << "\n";
+        // cout << "address of module " << &(*(p.first)) << "\n";
+        // cout << "address of devices list " << &(*(p.first)->devicesList) << "\n";
+        // cout << "test " << (*(p.first)).test << "\n";
+        // cout << "size of list: " << ((*(p.first)->devicesList).size()) << "\n";
+        // List<device_t> list = (*(*(p.first))).devicesList;
+        // module_t modul = *(p.first);
+        
+        // std::cout << "liste der groesse: " << modul.devicesList->size() << "\n";
+        // auto it = (modul.devicesList->begin());
+        // for (uint i = 0; i < (modul.devicesList->size()); i++)
+        // {
+        //     std::cout << (*it).getName() << "\n";
+        //     it++;
+        // }
+        
     }
-    // module_t *module_shm = managed_shm.construct<module_t>("tsn-cuc-dect-module")();
-    // cout << "creating a device\n";
-    // device_t device("test", 12345);
-    // module_shm->addDevice(device);
-    // std::pair<module_t*, std::size_t> p = managed_shm.find<module_t>("tsn-cuc-dect-module");
-    // cout << "The id: " << (*(p.first->devicesList.begin())).getPmid() << "\n";
-    // std::pair<int*, std::size_t> p = managed_shm.find<int>("Integer");
-    // if (p.first)
-    //     std::cout << *p.first << '\n';
-
+    List<device_t> *devicesList = p.first;
+    List<talker_t> *talkersList = managed_shm.construct<List<talker_t>>("talkerList")(mgr);
+    // module_t *module;
+    // *module = module_t(p.first, talkersList);
+    // module->devicesList = (p.first);
+    // module.devicesList = p.first;
     int mainMenu = 1;
-
-    module_t module;
-    device_t device1("test", 123);
-    device_t device2("test1", 1234);
-    device_t device3("test2", 1235);
-    device_t device4("test3", 1236);
-    device_t device5("test4", 1237);
-    module.addDevice(device1);
-    module.addDevice(device2);
-    module.addDevice(device3);
-    module.addDevice(device4);
-    module.addDevice(device5);
 
     while (mainMenu)
     {
@@ -699,9 +758,9 @@ int main( int argc, char* argv[] )
         else if (input.compare("D") == 0)
         {
             cout << "\n!---- SHOW DEVICES ----!\n\n";
-            cout << module.devicesList.size() << " registered Devices:\n";
-            auto it = module.devicesList.begin();
-            for (uint i = 0; i<module.devicesList.size(); i++)
+            cout << (devicesList)->size() << " registered Devices:\n";
+            auto it = (devicesList)->begin();
+            for (uint i = 0; i < (devicesList)->size(); i++)
             {
                 cout << "\t" << (*it).getId() << " - " << (*it).getName() << " - " << (*it).getPmid() << "\n";
                 it++;
@@ -710,9 +769,14 @@ int main( int argc, char* argv[] )
         else if (input.compare("T") == 0)
         {
             cout << "\n!---- CREATING A TALKER ----!\n\n";
-            int result = createTalker(module);
+            List<data_frame_specification_t> *data_frame_specification_list = managed_shm.construct<List<data_frame_specification_t>>("data_frame_specification_list")(mgr);
+            List<end_station_interface_t> *end_station_interface_list = managed_shm.construct<List<end_station_interface_t>>("end_station_interface_list")(mgr);
+            // List<data_frame_specification_t> *data_frame_specification_list;
+            // List<end_station_interface_t> *end_station_interface_list;
+            talker_t talker(data_frame_specification_list, end_station_interface_list);
+            int result = createTalker(*devicesList, talker);
             cout << result << "\n";
-            cout << "talker with id " << (*(module.talkersList.begin())).id << " was added.\n";
+            cout << "talker with id " << (*(talkersList->begin())).id << " was added.\n";
         }
         else if (input.compare("L") == 0)
         {
@@ -722,19 +786,20 @@ int main( int argc, char* argv[] )
         else if (input.compare("LT") == 0)
         {
             cout << "\n!---- LISTING THE TALKERS ----!\n\n";
-            cout << "Number of registered talkers: " << module.talkersList.size() << "\n\n";
-            auto it = module.talkersList.begin();
+            cout << "Number of registered talkers: " << talkersList->size() << "\n\n";
+            auto it = talkersList->begin();
             cout << "Device IDs registered as talkers:\n";
             int id;
             pmid_t pmid;
-            for (uint i = 0; i<module.talkersList.size(); i++)
+            for (uint i = 0; i<talkersList->size(); i++)
             {
                 id = (*it).getId();
-                for (std::list<device_t>::iterator it2 = module.devicesList.begin(); 
-                    it2 != module.devicesList.end(); it2++)
+                for (auto it2 = devicesList->begin(); 
+                    it2 != devicesList->end(); it2++)
                     if ((*it2).getId() == id)
                         pmid = (*it2).getPmid();
-                cout << "\t" << std::distance(module.talkersList.begin(), it) << ": Device ID " << id << " with PMID " << pmid << "\n";
+                // cout << "\t" << std::distance((*(module->talkersList->begin())), it) << ": Device ID " << id << " with PMID " << pmid << "\n";
+                cout << "\t" << "Device ID " << id << " with PMID " << pmid << "\n";
                 it++;
             }
             cout << "\nEnter entry number to list data or (q) to quit\n";
@@ -747,12 +812,12 @@ int main( int argc, char* argv[] )
                     break;
                 else if (readInt(input, entry))
                 {
-                    if ((entry < 0) || ((uint)entry >= module.talkersList.size()))
+                    if ((entry < 0) || ((uint)entry >= talkersList->size()))
                     {
                         cout << "Entry not found.\n";
                         continue;
                     }
-                    it = module.talkersList.begin();
+                    it = talkersList->begin();
                     advance(it, entry);
                     (*it).printData();
                     break;
