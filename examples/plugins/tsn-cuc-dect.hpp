@@ -30,77 +30,79 @@ template <typename K> using List = boost::interprocess::list<K, Alloc<K>>;
 
 /* type for PMID: should only have 20 Bits used*/
 typedef uint32_t pmid_t;
-/* type for mac addresses
-*/
-typedef boost::container::string mac_t;
-/* type for ipv4 addresses from ietf-inet-types YANG Module
-*/
-typedef boost::container::string ipv4_address_t;
-
-/* type for ipv6 addresses
-*/
-typedef boost::container::string ipv6_address_t;
-
-/* choice for data frame specification */
-enum field {MAC, VLAN, IPV4, IPV6};
-
-/* type for end station interface list in groups 
-uses group-interface-id*/
-struct end_station_interface_t {
-    // mac_t mac_address;
-    // std::string interface_name;
-    boost::container::string mac_address;
-    boost::container::string interface_name;
-};
-
-/* type for stream-rank in groups */
-struct stream_rank_t {
-    int rank;
-};
 
 /*
-    type combining all choices, identifiers are overloaded by pointers
+    The standard segment manager for shared memory containers
 */
-struct choice_t {
-    int field;
-    boost::container::string str1;
-    boost::container::string str2;
-    mac_t* source_mac_address = &str1;
-    ipv4_address_t* ipv4_source_ip_address = &str1;
-    ipv6_address_t* ipv6_source_ip_address = &str1;
-    boost::container::string* dest_mac_address = &str2;
-    mac_t* destination_mac_address = &str2;
-    ipv4_address_t* ipv4_destination_ip_address = &str2;
-    ipv6_address_t* ipv6_destination_ip_address = &str2;
-    int val1;
-    int* pcp = &val1;
-    int* dscp = &val1;
-    int val2;
-    int* vlan_id = &val2;
-    int* protocol = &val2;
-    int val3;
-    int* source_port = &val3;
-    int val4;
-    int* destination_port = &val4;
+typedef boost::interprocess::managed_shared_memory::segment_manager                                 segment_manager_t;
+
+/*
+    The standard void allocator for shared memory containers
+*/
+typedef boost::interprocess::allocator<void, segment_manager_t>                                     void_allocator;
+
+/*
+    The standard char allocator for all strings in the shared memory
+*/
+typedef boost::interprocess::allocator<char, segment_manager_t>                                     char_allocator;
+
+/*
+    The standard string data type for all strings in the shared memory
+*/
+typedef boost::interprocess::basic_string<char, std::char_traits<char>, char_allocator>             char_string;
+
+/* 
+    type for mac addresses
+*/
+
+typedef char_string mac_t;
+
+/* 
+    type for ipv4 addresses from ietf-inet-types YANG Module
+*/
+typedef char_string ipv4_address_t;
+
+/* 
+    type for ipv6 addresses
+*/
+typedef char_string ipv6_address_t;
+
+/* 
+    choice for data frame specification 
+*/
+enum field {MAC, VLAN, IPV4, IPV6};
+
+/* 
+    type for end station interface list in groups 
+    uses group-interface-id
+*/
+struct end_station_interface_t {
+    // char_string str1;
+    // char_string str2;
+    // mac_t mac_address = str1;
+    // mac_t interface_name = str2;
+    mac_t mac_address;
+    mac_t interface_name;    
+    // mac_t* mac_address = &str1;
+    // mac_t* interface_name = &str2;
+    end_station_interface_t(const char_allocator &alloc)
+        : mac_address(alloc), interface_name(alloc)
+        {} 
 };
 
 /* 
-    type for data-frame-specification 
-    gives choice for what spec. to use 
+    type for stream-rank in groups 
 */
-class data_frame_specification_t {
-    public:
-    int index;
-    choice_t choice;
-    data_frame_specification_t(choice_t choice);
+struct stream_rank_t {
+    int rank;
 };
 
 /*
     structure for interval in traffic specification
 */
 struct interval_t{
-    int numerator = -1;
-    int denominator = -1;
+    int numerator;
+    int denominator;
 };
 
 /*
@@ -121,18 +123,6 @@ struct user_to_network_requirements_t
     int num_seamless_trees;
     int max_latency;
 };
-
-/*
-    structure for interface-capabilities
-    contains two lists of int
-*/
-struct interface_capabilities_t
-{
-    bool vlan_tag_capable;
-    std::list<int> cb_stream_iden_type_list;
-    std::list<int> cb_sequence_type_list;
-};
-
 
 /* 
     struct for traffic specification
@@ -163,52 +153,14 @@ class device_t {
 };
 
 /*
-    end station Class
-    lists as single linked lists!
-    includes group-listener from YANG 
-*/
-class end_station_t {
-    public:
-    int id;
-    user_to_network_requirements_t user_to_network_requirements;
-    interface_capabilities_t interface_capabilities;
-    List<end_station_interface_t> *end_station_interface_list;
-    int add_interface(end_station_interface_t interface);
-    int getId();
-};
-
-/*
     listener Class
     lists as single linked lists!
     includes group-listener from YANG 
 */
-class listener_t : public end_station_t{
-    public:
-    listener_t(int id, user_to_network_requirements_t user_to_network_requirements, interface_capabilities_t interface_capabilities);
-};
-
-
-/* 
-    Talker class
-    lists as single linked lists!
-    includes group-talker from YANG 
-    has listener as base class
-*/
-class talker_t : public end_station_t{
-    public:
-    stream_rank_t stream_rank;
-    List<data_frame_specification_t> *data_frame_specification_list;
-    traffic_specification_t traffic_specification;
-    talker_t(int id, int rank, traffic_specification_t traffic_specification,
-        user_to_network_requirements_t user_to_network_requirements, 
-        interface_capabilities_t interface_capabilities);
-    talker_t(List<data_frame_specification_t> *data_frame_specification_list, List<end_station_interface_t> *end_station_interface_list);
-    talker_t();
-    int add_specification(data_frame_specification_t specification);
-    void printData();
-    // int remove_interface();
-    // int remove_specification();
-};
+// class listener_t : public end_station_t{
+//     public:
+//     listener_t(int id, user_to_network_requirements_t user_to_network_requirements, interface_capabilities_t interface_capabilities);
+// };
 
 enum talker_status_t {T_NONE, T_READY, T_FAILED};
 enum listener_status_t {L_NONE, L_READY, L_PARTIAL_FAILED, L_FAILED};
@@ -225,9 +177,153 @@ struct status_info_t{
 /*
     config list inside interface list inside group-status-talker-listener
 */
+
+//Typedefs of allocators and containers
+
+
+
+/*
+    choice for data_frame_specification_t depending on field:
+    1 = VLAN:
+        pcp and vlan_id
+    2 = MAC:
+        source_mac_address, destination_mac_address
+    3 = IPv4:
+        ipv4_source_ip_address, ipv4_source_ip_address, dscp, protocol, source_port, destination_port
+    4 = IPv6:
+        ipv6_source_ip_address, ipv6_source_ip_address, dscp, protocol, source_port, destination_port
+*/
+struct choice_t {
+    int field;
+    char_string str1;
+    char_string str2;
+    mac_t* source_mac_address = &str1;
+    ipv4_address_t* ipv4_source_ip_address = &str1;
+    ipv6_address_t* ipv6_source_ip_address = &str1;
+    mac_t* destination_mac_address = &str2;
+    ipv4_address_t* ipv4_destination_ip_address = &str2;
+    ipv6_address_t* ipv6_destination_ip_address = &str2;
+    int val1;
+    int* pcp = &val1;
+    int* dscp = &val1;
+    int val2;
+    int* vlan_id = &val2;
+    int* protocol = &val2;
+    int val3;
+    int* source_port = &val3;
+    int val4;
+    int* destination_port = &val4;
+    choice_t(const char_allocator &alloc)
+        : str1(alloc), str2(alloc)
+        {}
+};
+
+/*
+    data frame specification for data_frame_specification_list_t
+    needs choice_t in constructor and an index
+*/
+struct data_frame_specification_t {
+    int index;
+    choice_t choice;
+    data_frame_specification_t(const char_allocator &alloc)
+        : index(-1), choice(alloc) 
+        {}
+};
+
+typedef boost::interprocess::allocator<int, segment_manager_t>                                      int_allocator;
+typedef boost::interprocess::list<int, int_allocator>                                               int_list;
+/*
+    Structure for the interface capabilities group
+    has shared memory int lists for Lists
+*/
+struct interface_capabilities_t
+{
+    bool vlan_tag_capable;
+    int_list cb_stream_iden_type_list;
+    int_list cb_sequence_type_list;
+    interface_capabilities_t(const void_allocator &alloc)
+        : cb_stream_iden_type_list(alloc), cb_sequence_type_list(alloc)
+        {}
+};
+
+typedef boost::interprocess::allocator<end_station_interface_t, segment_manager_t>                  end_station_interface_allocator;
+typedef boost::interprocess::list<end_station_interface_t, end_station_interface_allocator>         end_station_interface_list_t;
+/*
+    Structure for end station data type
+    has shared memory lists for end station interfaces
+    and normal structs for user to network requirements, interface capabilities and
+    a unique id
+*/
+struct end_station_t {
+    public:
+    int id;
+    user_to_network_requirements_t user_to_network_requirements;
+    interface_capabilities_t interface_capabilities;
+    end_station_interface_list_t end_station_interface_list;
+    end_station_t(int id, const void_allocator &alloc)
+        : id(id), interface_capabilities(alloc), end_station_interface_list(alloc)
+        {}
+};
+
+
+
+typedef boost::interprocess::allocator<data_frame_specification_t, segment_manager_t>               data_frame_specification_allocator;
+typedef boost::interprocess::list<data_frame_specification_t, data_frame_specification_allocator>   data_frame_specification_list_t;
+/*
+    Class for the talkers in the module.
+    Inherits from end_station_t
+    has shared memory list for data_frame_specification
+    and additional rank as well as traffic specification
+*/
+class talker_t : public end_station_t{
+    public:
+    stream_rank_t stream_rank;
+    data_frame_specification_list_t data_frame_specification_list;
+    traffic_specification_t traffic_specification;
+    talker_t(int id, const void_allocator &alloc)
+        : end_station_t(id, alloc), data_frame_specification_list(alloc)
+        {}
+    void printData();
+};
+
+typedef boost::interprocess::allocator<device_t, segment_manager_t>                                 device_t_allocator;
+typedef boost::interprocess::list<device_t, device_t_allocator>                                     device_list_t;
+typedef boost::interprocess::allocator<talker_t, segment_manager_t>                                 talker_t_allocator;
+typedef boost::interprocess::list<talker_t, talker_t_allocator>                                     talker_list_t;
+/*
+    Overall structure for the whole module in the shared memory
+    has shared memory lists of devices, talkers and listeners
+*/
+class module_t{
+    public:
+    // std::list<device_t> devicesList;
+    device_list_t devicesList;
+    talker_list_t talkersList;
+    // List<listener_t> *listenersList;
+    // std::list<device_t> *devicesList;
+    // std::list<talker_t> *talkersList;
+    // std::list<listener_t> *listenersList;
+    // std::list<status_stream_t> streamsList;
+    // public:
+    // module_t(List<device_t> *devicesList, List<talker_t> *talkersList);
+    // module_t(boost::interprocess::managed_shared_memory &managed_shm, boost::interprocess::managed_shared_memory::segment_manager *mgr);
+    // module_t(List<device_t> *devicesList);
+    // module_t();
+    // int addDevice(device_t device);
+    // int removeDevice(int id);
+    // int addTalker(talker_t talker);
+    // int removeTalker(int id);
+    // int addListener(listener_t listener);
+    // int removeListener(int id);
+    module_t(void_allocator &alloc)
+        : devicesList(alloc), talkersList(alloc)
+        {}
+};
+
+// Stream
 class config_list_t {
     int id;
-    List<data_frame_specification_t> *config_values;
+    data_frame_specification_list_t config_values;
 };
 
 /*
@@ -261,117 +357,3 @@ class status_stream_t {
     status_stream_t(std::string stream_id, status_info_t status_info);
     int add_interface(end_station_interface_t failed_interface);
 };
-
-/*
-    Overall structure for the whole module in the shared memory
-    Maybe introduce visibility changes?
-*/
-class module_t{
-    public:
-    // std::list<device_t> devicesList;
-    int test;
-    List<device_t> *devicesList;
-    List<talker_t> *talkersList;
-    List<listener_t> *listenersList;
-    // std::list<device_t> *devicesList;
-    // std::list<talker_t> *talkersList;
-    // std::list<listener_t> *listenersList;
-    std::list<status_stream_t> streamsList;
-    // public:
-    module_t(List<device_t> *devicesList, List<talker_t> *talkersList);
-    // module_t(boost::interprocess::managed_shared_memory &managed_shm, boost::interprocess::managed_shared_memory::segment_manager *mgr);
-    // module_t(List<device_t> *devicesList);
-    // module_t();
-    int addDevice(device_t device);
-    int removeDevice(int id);
-    int addTalker(talker_t talker);
-    int removeTalker(int id);
-    int addListener(listener_t listener);
-    int removeListener(int id);
-};
-
-
-// testing shmem
-//Typedefs of allocators and containers
-struct choice_t_shm {
-    int field;
-    boost::container::string str1;
-    boost::container::string str2;
-    mac_t* source_mac_address = &str1;
-    ipv4_address_t* ipv4_source_ip_address = &str1;
-    ipv6_address_t* ipv6_source_ip_address = &str1;
-    boost::container::string* dest_mac_address = &str2;
-    mac_t* destination_mac_address = &str2;
-    ipv4_address_t* ipv4_destination_ip_address = &str2;
-    ipv6_address_t* ipv6_destination_ip_address = &str2;
-    int val1;
-    int* pcp = &val1;
-    int* dscp = &val1;
-    int val2;
-    int* vlan_id = &val2;
-    int* protocol = &val2;
-    int val3;
-    int* source_port = &val3;
-    int val4;
-    int* destination_port = &val4;
-};
-
-
-struct data_frame_specification_t_shm {
-    int index;
-    choice_t_shm choice;
-    data_frame_specification_t_shm(choice_t_shm choice);
-};
-
-typedef boost::interprocess::managed_shared_memory::segment_manager                       segment_manager_t;
-typedef boost::interprocess::allocator<void, segment_manager_t>                           void_allocator;
-typedef boost::interprocess::allocator<int, segment_manager_t>                            int_allocator;
-typedef boost::interprocess::allocator<char, segment_manager_t>                           char_allocator;
-typedef boost::interprocess::basic_string<char, std::char_traits<char>, char_allocator>   char_string;
-
-typedef boost::interprocess::allocator<end_station_interface_t, segment_manager_t>        end_station_interface_allocator;
-typedef boost::interprocess::allocator<data_frame_specification_t_shm, segment_manager_t>        data_frame_specification_allocator;
-
-typedef boost::interprocess::list<int, int_allocator>                                     int_list;
-typedef boost::interprocess::list<end_station_interface_t, end_station_interface_allocator>         end_station_interface_list_t;
-typedef boost::interprocess::list<data_frame_specification_t_shm, data_frame_specification_allocator>   data_frame_specification_list_t;
-
-struct interface_capabilities_t_shm
-{
-    bool vlan_tag_capable;
-    int_list cb_stream_iden_type_list;
-    int_list cb_sequence_type_list;
-    interface_capabilities_t_shm(const void_allocator &alloc)
-        : cb_stream_iden_type_list(alloc), cb_sequence_type_list(alloc)
-        {}
-};
-
-class end_station_t_shm {
-    public:
-    int id;
-    user_to_network_requirements_t user_to_network_requirements;
-    interface_capabilities_t_shm interface_capabilities;
-    end_station_interface_list_t end_station_interface_list;
-    end_station_t_shm(int id, const void_allocator &alloc)
-        : interface_capabilities(alloc), end_station_interface_list(alloc)
-        {}
-};
-
-class talker_t_shm : public end_station_t_shm{
-    public:
-    stream_rank_t stream_rank;
-    data_frame_specification_list_t data_frame_specification_list;
-    traffic_specification_t traffic_specification;
-    // talker_t_shm(int id, int rank, traffic_specification_t traffic_specification,
-    //     user_to_network_requirements_t user_to_network_requirements, 
-    //     interface_capabilities_t_shm interface_capabilities, const void_allocator &alloc);
-    talker_t_shm(int id, const void_allocator &alloc)
-        : end_station_t_shm(id, alloc), data_frame_specification_list(alloc)
-        {}
-    // talker_t();
-    // int add_specification(data_frame_specification_t specification);
-    void printData();
-};
-
-
-

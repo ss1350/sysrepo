@@ -55,108 +55,126 @@ int sr_plugin_init_cb(sr_session_ctx_t *session, void **private_ctx)
     boost::interprocess::managed_shared_memory segment(boost::interprocess::create_only,"MySharedMemory", 65536);
 
     //An allocator convertible to any allocator<T, segment_manager_t> type
-    void_allocator alloc_inst (segment.get_segment_manager());
-
     void_allocator alloc(segment.get_segment_manager());
-    end_station_t_shm* asd = segment.construct<end_station_t_shm>("testing")(2, alloc);
-    std::pair<end_station_t_shm*, std::size_t> wtf = segment.find<end_station_t_shm>("testing");
 
-    if(wtf.first)
-    {   
-        end_station_interface_t test;
-        test.interface_name = "test1";
-        test.mac_address = "test1mac";
-        end_station_interface_t test2;
-        test2.interface_name = "test2interfacename";
-        test2.mac_address = "test2macaddress";
-        wtf.first->end_station_interface_list.push_front(test);
-        wtf.first->end_station_interface_list.push_front(test2);
-        (wtf.first)->interface_capabilities.cb_stream_iden_type_list.push_back(1);
-        (wtf.first)->interface_capabilities.cb_stream_iden_type_list.push_back(2);
-        (wtf.first)->interface_capabilities.cb_stream_iden_type_list.push_back(3);
-        (wtf.first)->interface_capabilities.cb_stream_iden_type_list.push_back(4);
-        (wtf.first)->interface_capabilities.cb_stream_iden_type_list.push_back(5);
-        (wtf.first)->interface_capabilities.cb_sequence_type_list.push_back(6);
-        (wtf.first)->interface_capabilities.cb_sequence_type_list.push_back(7);
-        (wtf.first)->interface_capabilities.cb_sequence_type_list.push_back(8);
-        (wtf.first)->interface_capabilities.cb_sequence_type_list.push_back(9);
-        (wtf.first)->interface_capabilities.cb_sequence_type_list.push_back(10);
-        auto it = wtf.first->end_station_interface_list.begin();
-            cout << wtf.first->end_station_interface_list.size() << "is the size\n";
-            cout << (*it).interface_name << " and " << (*it).mac_address << "\n";
-            it++;
-            cout << (*it).interface_name << " and " << (*it).mac_address << "\n";
+
+    // whole module:
+
+    module_t* module = segment.construct<module_t>("dect_cuc_tsn")(alloc);
+
+    std::pair<module_t*, std::size_t> moduleptr = segment.find<module_t>("dect_cuc_tsn");
+
+    if (moduleptr.first)
+    {
+        cout << "WORKS!\n";
+        talker_t testtalker(1, alloc);
+        // rank
+        testtalker.stream_rank.rank = 0;
+        // end station interface list
+        end_station_interface_t esi(alloc);
+        esi.interface_name.assign("eth0");
+        esi.mac_address.assign("AA:AA:AA:AA:AA:AA"); 
+        end_station_interface_t esi2(alloc);
+        esi2.interface_name.assign("dect0");
+        esi2.mac_address.assign("CC:CC:CC:CC:CC:CC");
+        testtalker.end_station_interface_list.push_back(esi);
+        testtalker.end_station_interface_list.push_back(esi2);
+        // interface capabilities
+        testtalker.interface_capabilities.cb_sequence_type_list.push_back(1234);
+        testtalker.interface_capabilities.cb_sequence_type_list.push_back(5678);
+        testtalker.interface_capabilities.cb_stream_iden_type_list.push_back(9012);
+        testtalker.interface_capabilities.cb_stream_iden_type_list.push_back(3456);
+        testtalker.interface_capabilities.vlan_tag_capable = true;
+        // user to network requirements
+        testtalker.user_to_network_requirements.max_latency = 5;
+        testtalker.user_to_network_requirements.num_seamless_trees = 2;
+        // traffic specification
+        testtalker.traffic_specification.interval.numerator = 1;
+        testtalker.traffic_specification.interval.denominator = 2;
+        testtalker.traffic_specification.max_frame_size = 1024;
+        testtalker.traffic_specification.max_frames_per_interval = 20;
+        testtalker.traffic_specification.time_aware.earliest_transmit_offset = 1;
+        testtalker.traffic_specification.time_aware.jitter = 5;
+        testtalker.traffic_specification.time_aware.latest_transmit_offset = 10;
+        testtalker.traffic_specification.transmission_selection = 1234;
+        // data frame specifications
+        choice_t c1(alloc);
+        c1.field = VLAN;
+        *c1.vlan_id = 80;
+        *c1.pcp = 4;
+        data_frame_specification_t dfs1(alloc);
+        dfs1.choice = c1;
+        dfs1.index = 0;
+        testtalker.data_frame_specification_list.push_back(dfs1);
+        choice_t c2(alloc);
+        c2.field = MAC;
+        c2.source_mac_address->assign("AA:AA:AA:AA:AA:AA");
+        c2.destination_mac_address->assign("BB:BB:BB:BB:BB:BB");
+        data_frame_specification_t dfs2(alloc);
+        dfs2.choice = c2;
+        dfs2.index = 1;
+        testtalker.data_frame_specification_list.push_back(dfs2);
+        moduleptr.first->talkersList.push_back(testtalker);
+        // talker 2
+        talker_t testtalker2(2, alloc);
+        // rank
+        testtalker2.stream_rank.rank = 1;
+        // end station interface list
+        esi.interface_name.assign("eth1");
+        esi.mac_address.assign("11:11:11:11:11:11");
+        esi2.interface_name.assign("dect1");
+        esi2.mac_address.assign("22:22:22:22:22:22");
+        testtalker2.end_station_interface_list.push_back(esi);
+        testtalker2.end_station_interface_list.push_back(esi2);
+        // interface capabilities
+        testtalker2.interface_capabilities.cb_sequence_type_list.push_back(0001);
+        testtalker2.interface_capabilities.cb_sequence_type_list.push_back(0002);
+        testtalker2.interface_capabilities.cb_stream_iden_type_list.push_back(0003);
+        testtalker2.interface_capabilities.cb_stream_iden_type_list.push_back(0004);
+        testtalker2.interface_capabilities.vlan_tag_capable = false;
+        // user to network requirements
+        testtalker2.user_to_network_requirements.max_latency = 80;
+        testtalker2.user_to_network_requirements.num_seamless_trees = 90;
+        // traffic specification
+        testtalker2.traffic_specification.interval.numerator = 10;
+        testtalker2.traffic_specification.interval.denominator = 20;
+        testtalker2.traffic_specification.max_frame_size = 10240;
+        testtalker2.traffic_specification.max_frames_per_interval = 200;
+        testtalker2.traffic_specification.time_aware.earliest_transmit_offset = 10;
+        testtalker2.traffic_specification.time_aware.jitter = 50;
+        testtalker2.traffic_specification.time_aware.latest_transmit_offset = 100;
+        testtalker2.traffic_specification.transmission_selection = 12340;
+        // data frame specifications
+        choice_t c3(alloc);
+        c3.field = IPV4;
+        c3.ipv4_source_ip_address->assign("192.168.1.1");
+        c3.ipv4_destination_ip_address->assign("127.0.0.1");
+        *c3.dscp = 1234;
+        *c3.protocol = 5678;
+        *c3.source_port = 70;
+        *c3.destination_port = 90;
+        data_frame_specification_t dfs3(alloc);
+        dfs3.choice = c3;
+        dfs3.index = 0;
+        testtalker2.data_frame_specification_list.push_back(dfs3);
+        c2.field = IPV6;
+        c2.ipv6_source_ip_address->assign("0001:0db8:85a3:0005:0000:8a2e:0370:7334");
+        c2.ipv6_destination_ip_address->assign("1234:1234:1234:1234:0000:1234:1234:1234");
+        *c2.dscp = 5678;
+        *c2.protocol = 9012;
+        *c2.source_port = 50;
+        *c2.destination_port = 30;
+        data_frame_specification_t dfs4(alloc);
+        dfs4.choice = c2;
+        dfs4.index = 1;
+        testtalker2.data_frame_specification_list.push_back(dfs4);
+        moduleptr.first->talkersList.push_back(testtalker2);
+        // print the talkers
+        // moduleptr.first->talkersList.begin()->printData();
+        // (++moduleptr.first->talkersList.begin())->printData();
     }
     else
-        cout << "NOT FOUND!\n";
-
-    // traffic_specification_t ts;
-    // ts.interval.denominator = 1;
-    // ts.interval.numerator = 2;
-    // ts.max_frame_size = 3;
-    // ts.max_frames_per_interval = 4;
-    // ts.time_aware.earliest_transmit_offset = 5;
-    // ts.time_aware.jitter = 6;
-    // ts.time_aware.latest_transmit_offset = 7;
-    // ts.transmission_selection = 123;
-    // user_to_network_requirements_t utnr;
-    // utnr.max_latency = 8;
-    // utnr.num_seamless_trees = 9;
-
-    talker_t_shm* asd2 = segment.construct<talker_t_shm>("testing2")(2, alloc);
-
-        // talker_t_shm(int id, int rank, traffic_specification_t traffic_specification,
-        // user_to_network_requirements_t user_to_network_requirements, 
-        // interface_capabilities_t interface_capabilities, const void_allocator &alloc);
-
-    std::pair<talker_t_shm*, std::size_t> wtf2 = segment.find<talker_t_shm>("testing2");
-
-    if(wtf2.first)
-    {   
-        end_station_interface_t test;
-        test.interface_name = "test1";
-        test.mac_address = "test1mac";
-        end_station_interface_t test2;
-        test2.interface_name = "test2interfacename";
-        test2.mac_address = "test2macaddress";
-        wtf2.first->end_station_interface_list.push_front(test);
-        wtf2.first->end_station_interface_list.push_front(test2);
-        auto it = wtf2.first->end_station_interface_list.begin();
-            cout << wtf2.first->end_station_interface_list.size() << "is the size\n";
-            cout << (*it).interface_name << " and " << (*it).mac_address << "\n";
-            it++;
-            cout << (*it).interface_name << " and " << (*it).mac_address << "\n";
-        choice_t_shm c1;
-        c1.str1 = "test";
-        c1.str2 = "test2";
-        c1.val1 = 1;
-        c1.val2 = 2;
-        c1.val3 = 3;
-        c1.val4 = 4;  
-        c1.field = 1;      
-        data_frame_specification_t_shm dfs1(c1);
-        choice_t_shm c2;
-        c2.str1 = "testing";
-        c2.str2 = "testing2";
-        c2.val1 = 10;
-        c2.val2 = 20;
-        c2.val3 = 30;
-        c2.val4 = 40;   
-        c2.field = 2;     
-        data_frame_specification_t_shm dfs2(c2);
-        wtf2.first->data_frame_specification_list.push_back(dfs1);
-        wtf2.first->data_frame_specification_list.push_back(dfs2);
-        wtf2.first->interface_capabilities.cb_sequence_type_list.push_back(1);
-        wtf2.first->interface_capabilities.cb_sequence_type_list.push_back(2);
-        wtf2.first->interface_capabilities.cb_sequence_type_list.push_back(3);
-        wtf2.first->interface_capabilities.cb_sequence_type_list.push_back(4);
-        wtf2.first->interface_capabilities.cb_sequence_type_list.push_back(5);
-        wtf2.first->interface_capabilities.cb_stream_iden_type_list.push_back(7);
-        wtf2.first->interface_capabilities.cb_stream_iden_type_list.push_back(9);
-        wtf2.first->interface_capabilities.cb_stream_iden_type_list.push_back(10);
-    }
-    else
-        cout << "NOT FOUND!\n";
+        cout << "Does not work!\n";
 
     // initialize return code
     int rc = -1;
