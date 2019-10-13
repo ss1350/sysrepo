@@ -262,8 +262,8 @@ typedef boost::interprocess::list<data_frame_specification_t, data_frame_specifi
     and additional rank as well as traffic specification
 */
 class talker_t : public end_station_t{
-    stream_rank_t stream_rank;
     public:
+    stream_rank_t stream_rank;
     data_frame_specification_list_t data_frame_specification_list;
     traffic_specification_t traffic_specification;
     talker_t(int id, const void_allocator &alloc)
@@ -405,6 +405,7 @@ class module_t{
     int addTalker(talker_t talker);
     int addListener(listener_t listener);
     int addStream(stream_t stream);
+    int addDevice(device_t device);
     module_t(void_allocator &alloc)
         : devicesList(alloc), talkersList(alloc), listenersList(alloc), streamsList(alloc)
         {}

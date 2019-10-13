@@ -63,7 +63,7 @@ int removeInterfaceNameFromList(std::list<T> &list, std::string name)
 
 bool uintListContainsUint(uint_list list, uint x)
 {
-	for (auto it = list.begin() ; it != list.end() ; ++it)
+	for (auto it = list.begin() ; it != list.end() ; it++)
 	{
 		if (*it == x)
 			return true;
@@ -495,9 +495,9 @@ int end_station_t::removeInterface(end_station_interface_list_t::iterator it)
 */
 int end_station_t::addCBSequenceType(uint type)
 {
-    if (type > (2^32)-1)
+    if (type > 4294967295)
         return 0;
-    if (!(uintListContainsUint(this->interface_capabilities.cb_sequence_type_list, type)))
+    if (uintListContainsUint(this->interface_capabilities.cb_sequence_type_list, type))
         return 0;
     this->interface_capabilities.cb_sequence_type_list.push_back(type);
     return 1;
@@ -509,9 +509,9 @@ int end_station_t::addCBSequenceType(uint type)
 */
 int end_station_t::addCBStreamIdenType(uint type)
 {    
-    if (type > (2^32)-1)
+    if (type > 4294967295)
         return 0;
-    if (!(uintListContainsUint(this->interface_capabilities.cb_stream_iden_type_list, type)))
+    if (uintListContainsUint(this->interface_capabilities.cb_stream_iden_type_list, type))
         return 0;
     this->interface_capabilities.cb_stream_iden_type_list.push_back(type);
     return 1;
@@ -538,8 +538,8 @@ int end_station_t::setUserToNetworkRequirements(int maxLatency, int numSeamlessT
 choice_t::choice_t(int pcp, int vlan_id, const char_allocator &alloc)
     : str1(alloc), str2(alloc)
 {
-    if (!((pcp >=0 ) && (pcp <= 7) && (vlan_id > 0)))
-        return;
+    // if (!((pcp >=0 ) && (pcp <= 7) && (vlan_id > 0)))
+    //     return;
     this->field = VLAN;
     *this->pcp = pcp;
     *this->vlan_id = vlan_id;
@@ -551,8 +551,8 @@ choice_t::choice_t(int pcp, int vlan_id, const char_allocator &alloc)
 choice_t::choice_t(std::string mac_source, std::string mac_dest, const char_allocator &alloc)
     : str1(alloc), str2(alloc)
 {
-    if (!((readMac(str1.c_str())) && readMac(str2.c_str())))
-        return;
+    // if (!((readMac(str1.c_str())) && readMac(str2.c_str())))
+    //     return;
     this->field = MAC;
     this->source_mac_address->assign(mac_source.c_str());
     this->destination_mac_address->assign(mac_dest.c_str());
@@ -658,6 +658,12 @@ int module_t::addListener(listener_t listener)
 int module_t::addStream(stream_t stream)
 {
     this->streamsList.push_back(stream);
+    return 1;
+}
+
+int module_t::addDevice(device_t device)
+{
+    this->devicesList.push_back(device);
     return 1;
 }
 
@@ -889,15 +895,25 @@ int status_talker_listener_t::addInterfaceConfiguration(interface_configuration_
 
 void fillData(module_t *moduleptr, void_allocator alloc)
 {
+    // devices
+    device_t test("device1", "11110000000000001111", alloc);
+    device_t test2("device2", "11110000000000001110", alloc);
+    device_t test3("device3", "11110100000000001111", alloc);
+    device_t test4("device4", "11110000001000001111", alloc);
+    moduleptr->addDevice(test);
+    moduleptr->addDevice(test2);
+    moduleptr->addDevice(test3);
+    moduleptr->addDevice(test4);
+
     // talker 1
     talker_t testtalker(1, alloc);
     testtalker.setRank(0);
     testtalker.addInterface(end_station_interface_t("AA:AA:AA:AA:AA:AA", "eth0", alloc));
     testtalker.addInterface(end_station_interface_t("CC:CC:CC:CC:CC:CC", "dect0", alloc));
-    testtalker.addCBSequenceType(1234);
-    testtalker.addCBSequenceType(5678);
-    testtalker.addCBStreamIdenType(9012);
-    testtalker.addCBStreamIdenType(3456);
+    testtalker.addCBSequenceType(8686);
+    testtalker.addCBSequenceType(3535);
+    testtalker.addCBStreamIdenType(1112);
+    testtalker.addCBStreamIdenType(3342);
     testtalker.interface_capabilities.vlan_tag_capable = true;
     testtalker.user_to_network_requirements.max_latency = 5;
     testtalker.user_to_network_requirements.num_seamless_trees = 2;
@@ -916,10 +932,10 @@ void fillData(module_t *moduleptr, void_allocator alloc)
     testtalker2.setRank(1);
     testtalker2.addInterface(end_station_interface_t("11:11:11:11:11:11", "eth1", alloc));
     testtalker2.addInterface(end_station_interface_t("22:22:22:22:22:22", "dect1", alloc));
-    testtalker2.addCBSequenceType(0001);
-    testtalker2.addCBSequenceType(0002);
-    testtalker2.addCBStreamIdenType(0003);
-    testtalker2.addCBStreamIdenType(0004);
+    testtalker2.addCBSequenceType(1234);
+    testtalker2.addCBSequenceType(5678);
+    testtalker2.addCBStreamIdenType(9012);
+    testtalker2.addCBStreamIdenType(3456);
     testtalker2.interface_capabilities.vlan_tag_capable = false;
     testtalker2.user_to_network_requirements.max_latency = 80;
     testtalker2.user_to_network_requirements.num_seamless_trees = 90;
@@ -931,8 +947,8 @@ void fillData(module_t *moduleptr, void_allocator alloc)
     testtalker2.traffic_specification.time_aware.jitter = 50;
     testtalker2.traffic_specification.time_aware.latest_transmit_offset = 100;
     testtalker2.traffic_specification.transmission_selection = 12340;
-    testtalker2.data_frame_specification_list.push_back(data_frame_specification_t(0, "192.168.1.1", "127.0.0.1", 70, 90, 1234, 5678, alloc));
-    testtalker2.data_frame_specification_list.push_back(data_frame_specification_t(1, "::1", "2::33", 50, 30, 5678, 9012, alloc));
+    testtalker2.addSpecification(data_frame_specification_t(0, "192.168.1.1", "127.0.0.1", 70, 90, 1234, 5678, alloc));
+    testtalker2.addSpecification(data_frame_specification_t(1, "::1", "2::33", 50, 30, 5678, 9012, alloc));
     // adding listeners
     moduleptr->addTalker(testtalker);
     moduleptr->addTalker(testtalker2);
