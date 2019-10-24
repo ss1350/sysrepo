@@ -26,7 +26,7 @@ template <typename K> using List = boost::interprocess::list<K, Alloc<K>>;
 #include "tsn-cuc-dect.cpp"
 #endif
 
-BOOST_LIB_VERSION;
+// BOOST_LIB_VERSION;
 /* session of our plugin, can be used until cleanup is called */
 sr_session_ctx_t *sess;
 /* thread ID of the reading (thread) */
@@ -1012,8 +1012,9 @@ static int change_cb(sr_session_ctx_t *session, const char *module_name, sr_noti
 
     try {
         SRP_LOG_DBG_MSG("Getting the mutex.");
-        boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> lock(module_shm.first->mutex, boost::interprocess::try_to_lock);
-        if(lock)
+        // boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> lock(module_shm.first->mutex, boost::interprocess::try_to_lock);
+        // if(lock)
+        if (true)
         {
             // process every single entry
             // process only changes: sr_get_changes_iter()?
