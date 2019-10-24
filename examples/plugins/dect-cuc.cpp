@@ -26,6 +26,7 @@ template <typename K> using List = boost::interprocess::list<K, Alloc<K>>;
 #include "tsn-cuc-dect.cpp"
 #endif
 
+BOOST_LIB_VERSION;
 /* session of our plugin, can be used until cleanup is called */
 sr_session_ctx_t *sess;
 /* thread ID of the reading (thread) */
@@ -65,7 +66,7 @@ int sr_plugin_init_cb(sr_session_ctx_t *session, void **private_ctx)
     boost::interprocess::shared_memory_object::remove("SYSREPO_SHM");
 
     //Create shared memory
-    boost::interprocess::managed_shared_memory segment(boost::interprocess::create_only,"SYSREPO_SHM", 65536);
+    boost::interprocess::managed_shared_memory segment(boost::interprocess::create_only,"SYSREPO_SHM", 16000);
 
     segptr = &segment;
     //An allocator convertible to any allocator<T, segment_manager_t> type
@@ -224,6 +225,7 @@ static int request_devices(const char *xpath, sr_val_t **values, size_t *values_
         std::cout << ex.what() << std::endl;
         return SR_ERR_INTERNAL;
     }
+    return SR_ERR_OK;
 }
 
 /*
