@@ -137,8 +137,25 @@ int readInt(int &converted)
     return 1;
 }
 
+int readInt(uint &converted)
+{
+    std::string input;
+    cin >> input;
+    try{
+        converted = stoi(input);
+    }    
+    catch (const std::invalid_argument& ia) {
+        #ifndef CATCH_CONFIG_RUNNER
+        std::cerr << "Invalid Input: " << ia.what() << '\n';
+        #endif
+        return 0;
+    }
+    return 1;
+}
+
+
 /*
-    @brief check if input is compliant to number mac address separated by :
+    @brief check if input is compliant to number mac address separated by -
     @param[in] input string to check
     @param[out] mac_t mac address i correct format
     @return 0 when non-compliant, 1 when compliant
@@ -151,7 +168,7 @@ int readMac(const char* input)
     {
         if (isxdigit(*input)) 
             i++;
-        else if (*input == ':') 
+        else if (*input == '-') 
         {
             if (i == 0 || i / 2 - 1 != s)
                 break;
@@ -535,7 +552,7 @@ int end_station_t::setUserToNetworkRequirements(int maxLatency, int numSeamlessT
     @brief constructor for VLAN choice_t
     @param[in] integers pcp, vlan_id, alloc
 */
-choice_t::choice_t(int pcp, int vlan_id, const char_allocator &alloc)
+choice_t::choice_t(uint pcp, int vlan_id, const char_allocator &alloc)
     : str1(alloc), str2(alloc)
 {
     // if (!((pcp >=0 ) && (pcp <= 7) && (vlan_id > 0)))
@@ -587,6 +604,16 @@ choice_t::choice_t(std::string ipSource, std::string ipDest, int sourcePort, int
     else
         return;
 }
+/*    
+    @brief constructor for TAO choice_t.
+    @param[in] uint timeAwareOffset
+*/
+choice_t::choice_t(uint timeAwareOffset, const char_allocator &alloc)
+    : str1(alloc), str2(alloc)
+{
+    this->field = TAO;
+    *this->timeAwareOffset = timeAwareOffset;
+}
 
 /*
     Talker_t functions
@@ -610,6 +637,13 @@ int talker_t::addSpecification(data_frame_specification_t specification)
 int talker_t::setRank(int rank)
 {
     if ((rank < 0) || (rank > 1))
+        return 0;
+    this->stream_rank.rank = (uint)rank;
+    return 1;
+}
+int talker_t::setRank(uint rank)
+{
+    if (rank > 1)
         return 0;
     this->stream_rank.rank = rank;
     return 1;
@@ -775,6 +809,9 @@ void stream_t::printData()
                 if (i->choice.field == MAC)
                     cout << "\n\t\t\t\t\t\t\tieee802-mac-addresses\n\t\t\t\t\t\t\t\tsource_mac_address: " << 
                         i->choice.str1 << "\n\t\t\t\t\t\t\t\tdestination_mac_address: "<< i->choice.str2 << "\n";
+                else if (i->choice.field == TAO)
+                    cout << "\n\t\t\t\t\t\t\ttime-aware-offset\n\t\t\t\t\t\t\t\ttime-aware-offset: " << 
+                        i->choice.val1 << "\n";
                 else if (i->choice.field == VLAN)
                     cout << "\n\t\t\t\t\t\t\tieee802-vlan-tag\n\t\t\t\t\t\t\t\tpcp: " << i->choice.val1 << 
                         "\n\t\t\t\t\t\t\t\tvlan_id: " << i->choice.val2 << "\n";
@@ -808,6 +845,9 @@ void stream_t::printData()
                 if (j->choice.field == MAC)
                     cout << "\n\t\t\t\t\t\t\t\tieee802-mac-addresses\n\t\t\t\t\t\t\t\t\tsource_mac_address: " << 
                         j->choice.str1 << "\n\t\t\t\t\t\t\t\t\tdestination_mac_address: "<< j->choice.str2 << "\n";
+                else if (j->choice.field == TAO)
+                    cout << "\n\t\t\t\t\t\t\t\ttime-aware-offset\n\t\t\t\t\t\t\t\t\ttime-aware-offset: " << 
+                        j->choice.val1 << "\n";
                 else if (j->choice.field == VLAN)
                     cout << "\n\t\t\t\t\t\t\t\tieee802-vlan-tag\n\t\t\t\t\t\t\t\t\tpcp: " << j->choice.val1 << 
                         "\n\t\t\t\t\t\t\t\t\tvlan_id: " << j->choice.val2 << "\n";
@@ -824,7 +864,13 @@ void stream_t::printData()
             }
         }
     }
-    // status info and failed interfaces
+    cout << "\tstatus-info:\n\t\ttalker-status: " << this->status_info.talker_status << "\n\t\tlisteners-status: " << 
+        this->status_info.listener_status << "\n\t\tfailure-code: " << this->status_info.failure_code << "\n";
+    cout << "\tfailed-interfaces:\n";
+    for (auto it = this->failedInterfacesList.begin(); it != this->failedInterfacesList.end(); it++)
+    {
+        cout << "\t\tinterface-name: " << it->interface_name << "\n\t\tmac-address: " << it->mac_address << "\n";
+    }
     cout << "\n!---- END OF STREAM DATA ---!\n";
 }
 
@@ -907,13 +953,17 @@ void fillData(module_t *moduleptr, void_allocator alloc)
 
     // talker 1
     talker_t testtalker(1, alloc);
-    testtalker.setRank(0);
-    testtalker.addInterface(end_station_interface_t("AA:AA:AA:AA:AA:AA", "eth0", alloc));
-    testtalker.addInterface(end_station_interface_t("CC:CC:CC:CC:CC:CC", "dect0", alloc));
-    testtalker.addCBSequenceType(8686);
-    testtalker.addCBSequenceType(3535);
-    testtalker.addCBStreamIdenType(1112);
-    testtalker.addCBStreamIdenType(3342);
+    testtalker.setRank(1);
+    testtalker.addInterface(end_station_interface_t("AA-AA-AA-AA-AA-AA", "eth0", alloc));
+    testtalker.addInterface(end_station_interface_t("CC-CC-CC-CC-CC-CC", "dect0", alloc));
+    testtalker.addCBSequenceType(1);
+    testtalker.addCBSequenceType(2);
+    testtalker.addCBSequenceType(50);
+    testtalker.addCBSequenceType(60);
+    testtalker.addCBStreamIdenType(3);
+    testtalker.addCBStreamIdenType(4);
+    testtalker.addCBStreamIdenType(70);
+    testtalker.addCBStreamIdenType(80);
     testtalker.interface_capabilities.vlan_tag_capable = true;
     testtalker.user_to_network_requirements.max_latency = 5;
     testtalker.user_to_network_requirements.num_seamless_trees = 2;
@@ -926,16 +976,20 @@ void fillData(module_t *moduleptr, void_allocator alloc)
     testtalker.traffic_specification.time_aware.latest_transmit_offset = 10;
     testtalker.traffic_specification.transmission_selection = 1234;
     testtalker.data_frame_specification_list.push_back(data_frame_specification_t(0, 4, 80, alloc));
-    testtalker.data_frame_specification_list.push_back(data_frame_specification_t(1, "AA:AA:AA:AA:AA:AA", "BB:BB:BB:BB:BB:BB", alloc));
+    testtalker.data_frame_specification_list.push_back(data_frame_specification_t(1, "AA-AA-AA-AA-AA-AA", "BB-BB-BB-BB-BB-BB", alloc));
     // talker 2
     talker_t testtalker2(2, alloc);
     testtalker2.setRank(1);
-    testtalker2.addInterface(end_station_interface_t("11:11:11:11:11:11", "eth1", alloc));
-    testtalker2.addInterface(end_station_interface_t("22:22:22:22:22:22", "dect1", alloc));
-    testtalker2.addCBSequenceType(1234);
-    testtalker2.addCBSequenceType(5678);
-    testtalker2.addCBStreamIdenType(9012);
-    testtalker2.addCBStreamIdenType(3456);
+    testtalker2.addInterface(end_station_interface_t("11-11-11-11-11-11", "eth1", alloc));
+    testtalker2.addInterface(end_station_interface_t("22-22-22-22-22-22", "dect1", alloc));
+    testtalker2.addCBSequenceType(1);
+    testtalker2.addCBSequenceType(2);
+    testtalker2.addCBSequenceType(3);
+    testtalker2.addCBSequenceType(4);
+    testtalker2.addCBStreamIdenType(11);
+    testtalker2.addCBStreamIdenType(22);
+    testtalker2.addCBStreamIdenType(33);
+    testtalker2.addCBStreamIdenType(44);
     testtalker2.interface_capabilities.vlan_tag_capable = false;
     testtalker2.user_to_network_requirements.max_latency = 80;
     testtalker2.user_to_network_requirements.num_seamless_trees = 90;
@@ -955,16 +1009,20 @@ void fillData(module_t *moduleptr, void_allocator alloc)
 
     // listener1
     listener_t testlistener(-1, alloc);
-    testlistener.setId(2);
-    testlistener.addCBSequenceType(10);
-    testlistener.addCBSequenceType(20);
-    testlistener.addCBStreamIdenType(30);
-    testlistener.addCBStreamIdenType(40);
+    testlistener.setId(1);
+    testlistener.addCBSequenceType(100);
+    testlistener.addCBSequenceType(200);
+    testlistener.addCBSequenceType(300);
+    testlistener.addCBSequenceType(400);
+    testlistener.addCBStreamIdenType(500);
+    testlistener.addCBStreamIdenType(600);
+    testlistener.addCBStreamIdenType(700);
+    testlistener.addCBStreamIdenType(800);
     testlistener.interface_capabilities.vlan_tag_capable = 1;
     testlistener.user_to_network_requirements.max_latency = 100;
     testlistener.user_to_network_requirements.num_seamless_trees = 3;
-    testlistener.addInterface(end_station_interface_t("22:22:22:22:22:22", "test1a", alloc));
-    testlistener.addInterface(end_station_interface_t("33:33:33:33:33:33", "test1b", alloc));
+    testlistener.addInterface(end_station_interface_t("22-22-22-22-22-22", "test1a", alloc));
+    testlistener.addInterface(end_station_interface_t("33-33-33-33-33-33", "test1b", alloc));
     // listener2
     listener_t testlistener2(-1, alloc);
     testlistener2.setId(2);
@@ -975,60 +1033,69 @@ void fillData(module_t *moduleptr, void_allocator alloc)
     testlistener2.interface_capabilities.vlan_tag_capable = 15;
     testlistener2.user_to_network_requirements.max_latency = 1500;
     testlistener2.user_to_network_requirements.num_seamless_trees = 53;
-    testlistener2.addInterface(end_station_interface_t("33:33:33:22:22:22", "test2a", alloc));
-    testlistener2.addInterface(end_station_interface_t("22:22:22:33:33:33", "test2b", alloc));
+    testlistener2.addInterface(end_station_interface_t("33-33-33-22-22-22", "test2a", alloc));
+    testlistener2.addInterface(end_station_interface_t("22-22-22-33-33-33", "test2b", alloc));
     // adding listeners
     moduleptr->addListener(testlistener);
     moduleptr->addListener(testlistener2);
 
-    // stream 1
-    stream_t stream1(alloc);
-    stream1.setStreamId("1");
-    // status info
-    status_info_t statusInfo;
-    statusInfo.failure_code = 0;
-    statusInfo.listener_status = L_PARTIAL_FAILED;
-    statusInfo.talker_status = T_READY;
-    stream1.setStatusInfo(statusInfo);
-    // failed interfaces
-    stream1.addFailedInterface(end_station_interface_t("AA:AA:AA:AA:AA:AA:AA", "qwe", alloc));
-    stream1.addFailedInterface(end_station_interface_t("BB:BB:BB:BB:BB:BB", "asd", alloc));
-    // talker status
-    talkers_status_t talkerStatus(alloc);
-    talkerStatus.accumulated_latency = 100;
-    talkerStatus.talker_id = 1;
-    interface_configuration_t talkerIC("CC:CC:CC:CC:CC:CC", "talkerinterface", alloc);
-    talkerIC.addConfig(config_t(data_frame_specification_t(0, 3, 80, alloc), 100));
-    talkerIC.addConfig(config_t(data_frame_specification_t(1, 456, 3, alloc), 50));
-    talkerStatus.addInterfaceConfiguration(talkerIC);
-    stream1.setTalkerStatus(talkerStatus);
-    // listeners status 1
-    listeners_status_t listenerStatus(alloc);
-    listenerStatus.accumulated_latency = 400;
-    listenerStatus.listener_id = 1;
-    interface_configuration_t listenerIC("11:11:11:11:11:11", "listenerif1", alloc);
-    listenerIC.addConfig(config_t(data_frame_specification_t(0, 2, 30, alloc), 400));
-    listenerIC.addConfig(config_t(data_frame_specification_t(1, 4, 90, alloc), 500));
-    listenerStatus.addInterfaceConfiguration(listenerIC);
-    interface_configuration_t listenerIC2("11:11:11:22:22:22", "listenerif2", alloc);
-    listenerIC2.addConfig(config_t(data_frame_specification_t(0, 3, 306, alloc), 40));
-    listenerIC2.addConfig(config_t(data_frame_specification_t(1, 5, 906, alloc), 50));
-    listenerStatus.addInterfaceConfiguration(listenerIC2);
-    stream1.addListenerStatus(listenerStatus);
-    // listeners status 2
-    listeners_status_t listenerStatus2(alloc);
-    listenerStatus2.accumulated_latency = 200;
-    listenerStatus2.listener_id = 2;
-    interface_configuration_t listenerIC3("22:11:11:11:11:11", "listenerif3", alloc);
-    listenerIC3.addConfig(config_t(data_frame_specification_t(0, 1, 310, alloc), 49));
-    listenerIC3.addConfig(config_t(data_frame_specification_t(1, 3, 910, alloc), 59));
-    listenerStatus2.addInterfaceConfiguration(listenerIC3);    
-    interface_configuration_t listenerIC4("11:11:11:11:11:33", "listenerif4", alloc);
-    listenerIC4.addConfig(config_t(data_frame_specification_t(0, 0, 320, alloc), 48));
-    listenerIC4.addConfig(config_t(data_frame_specification_t(1, 7, 920, alloc), 55));
-    listenerStatus2.addInterfaceConfiguration(listenerIC4); 
-    stream1.addListenerStatus(listenerStatus2);
-    moduleptr->addStream(stream1);
+    // // stream 1
+    // stream_t stream1(alloc);
+    // stream1.setStreamId("CC-CC-CC-CC-CC-CC:11-11");
+    // // status info
+    // status_info_t statusInfo;
+    // statusInfo.failure_code = 0;
+    // statusInfo.listener_status = L_PARTIAL_FAILED;
+    // statusInfo.talker_status = T_READY;
+    // stream1.setStatusInfo(statusInfo);
+    // // failed interfaces
+    // stream1.addFailedInterface(end_station_interface_t("AA-AA-AA-AA-AA-AA", "qwe", alloc));
+    // stream1.addFailedInterface(end_station_interface_t("BB-BB-BB-BB-BB-BB", "asd", alloc));
+    // // talker status
+    // talkers_status_t talkerStatus(alloc);
+    // talkerStatus.accumulated_latency = 100;
+    // talkerStatus.talker_id = 1;
+    // interface_configuration_t talkerIC("CC-CC-CC-CC-CC-CC", "talkerinterface", alloc);
+    // talkerIC.addConfig(config_t(0, 3, 80, alloc));
+    // talkerIC.addConfig(config_t(1, 456, 3, alloc));
+    // talkerIC.addConfig(config_t(2, 100, alloc));
+    // talkerStatus.addInterfaceConfiguration(talkerIC);
+    // stream1.setTalkerStatus(talkerStatus);
+    // // listeners status 1
+    // listeners_status_t listenerStatus(alloc);
+    // listenerStatus.accumulated_latency = 400;
+    // listenerStatus.listener_id = 1;
+    // interface_configuration_t listenerIC("11-11-11-11-11-11", "listenerif1", alloc);
+    // listenerIC.addConfig(config_t(0, 2, 30, alloc));
+    // listenerIC.addConfig(config_t(1, 4, 90, alloc));
+    // listenerStatus.addInterfaceConfiguration(listenerIC);
+    // interface_configuration_t listenerIC2("11-11-11-22-22-22", "listenerif2", alloc);
+    // listenerIC2.addConfig(config_t(0, 3, 306, alloc));
+    // listenerIC2.addConfig(config_t(1, 5, 906, alloc));
+    // listenerStatus.addInterfaceConfiguration(listenerIC2);
+    // stream1.addListenerStatus(listenerStatus);
+    // // listeners status 2
+    // listeners_status_t listenerStatus2(alloc);
+    // listenerStatus2.accumulated_latency = 200;
+    // listenerStatus2.listener_id = 2;
+    // interface_configuration_t listenerIC3("22-11-11-11-11-11", "listenerif3", alloc);
+    // listenerIC3.addConfig(config_t(0, 1, 310, alloc));
+    // listenerIC3.addConfig(config_t(1, 3, 910, alloc));
+    // listenerStatus2.addInterfaceConfiguration(listenerIC3);    
+    // interface_configuration_t listenerIC4("11-11-11-11-11-33", "listenerif4", alloc);
+    // listenerIC4.addConfig(config_t(0, 0, 320, alloc));
+    // listenerIC4.addConfig(config_t(1, 7, 920, alloc));
+    // listenerStatus2.addInterfaceConfiguration(listenerIC4); 
+    // stream1.addListenerStatus(listenerStatus2);
+    // // status_info
+    // stream1.status_info.failure_code = 1;
+    // stream1.status_info.listener_status = L_PARTIAL_FAILED;
+    // stream1.status_info.talker_status = T_READY;
+    // // failed interfaces
+    // stream1.addFailedInterface(end_station_interface_t("11-11-11-11-11-33", "listenerif4", alloc));
+    // stream1.addFailedInterface(end_station_interface_t("11-11-11-22-22-22", "listenerif2", alloc));
+    // set
+    // moduleptr->addStream(stream1);
 
     // stream1.talkerStatus.interface_configuration.config_list
 }

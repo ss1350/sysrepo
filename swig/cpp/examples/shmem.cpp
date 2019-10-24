@@ -6,6 +6,8 @@
 
 #ifndef IPC
 #define IPC
+// #include <boost/thread.hpp>
+#include <boost/interprocess/sync/named_mutex.hpp>
 #include <boost/interprocess/containers/string.hpp>
 #include <boost/interprocess/containers/list.hpp>
 #include <boost/interprocess/managed_shared_memory.hpp>
@@ -35,12 +37,10 @@ int createDeviceId(module_t* moduleptr, end_station_t &device)
 {
     cout << "\n!---- DEVICE ID ----!\n\n";
     cout << "Enter device ID to make talker or listener, enter quit to exit: ";
-    std::string input;
-    cin >> input;
-    if (input.compare("quit") == 0)
-        return 0;
     int id;
     if (!(readInt(id)))
+        return 0;
+    if (id < 0)
         return 0;
     cout << "Checking ID\n";
     auto it = moduleptr->devicesList.begin();
@@ -58,12 +58,8 @@ int createDeviceId(module_t* moduleptr, end_station_t &device)
 int createTalkerRank(talker_t &talker)
 {
     int rank;
-    std::string input;
     cout << "\n!---- RANK ----!\n\n";
     cout << "Enter rank (0 or 1, 0 being more important): ";
-    cin >> input;
-    if (input.size() > 1)
-        return 0;
     readInt(rank);
     cout << "Read rank: " << rank << "\n";
     talker.setRank(rank);
@@ -480,7 +476,6 @@ int createTalkerDataFrameSpecifications(talker_t &talker, void_allocator &alloc)
                     while(true)
                     {
                         cout << "Enter source port:\n";
-                        cin >> input;
                         if (readInt(*choice.source_port))
                             break;
                         cout << "Wrong format. Try again.\n";
@@ -499,7 +494,6 @@ int createTalkerDataFrameSpecifications(talker_t &talker, void_allocator &alloc)
                     while(true)
                     {
                         cout << "Enter destination port:\n";
-                        cin >> input;
                         if (readInt(*choice.destination_port))
                             break;
                         cout << "Wrong format. Try again.\n";
@@ -540,7 +534,6 @@ int createTalkerDataFrameSpecifications(talker_t &talker, void_allocator &alloc)
                     while(true)
                     {
                         cout << "Enter source port:\n";
-                        cin >> input;
                         if (readInt(*choice.source_port))
                             break;
                         cout << "Wrong format. Try again.\n";
@@ -559,7 +552,6 @@ int createTalkerDataFrameSpecifications(talker_t &talker, void_allocator &alloc)
                     while(true)
                     {
                         cout << "Enter destination port:\n";
-                        cin >> input;
                         if (readInt(*choice.destination_port))
                             break;
                         cout << "Wrong format. Try again.\n";
@@ -618,7 +610,6 @@ int createTalkerDataFrameSpecifications(talker_t &talker, void_allocator &alloc)
             while(true)
             {
                 cout << "Enter Index to be deleted:\n";
-                cin >> input;
                 int index;
                 if (readInt(index))
                 {
@@ -658,15 +649,6 @@ int createTalker(module_t* moduleptr, void_allocator &alloc)
             }
             case 1: // rank
             {
-                int rank;
-                cout << "\n!---- RANK ----!\n\n";
-                cout << "Enter rank (0 or 1, 0 being more important): ";
-                cin >> input;
-                if (input.size() > 1)
-                    return 0;
-                readInt(rank);
-                cout << "Read rank: " << rank << "\n";
-                talker.setRank(rank);
                 if (createTalkerRank(talker))
                     stage++;
                 break;
@@ -783,48 +765,6 @@ int createListener(module_t *moduleptr, void_allocator &alloc)
     return 0;
 }
 
-int listTalkers(module_t *moduleptr)
-{
-    cout << "\n!---- LISTING THE TALKERS ----!\n\n";
-    cout << "Number of registered talkers: " << moduleptr->talkersList.size() << "\n\n";
-    cout << "Device IDs registered as talkers:\n";
-    int id;
-    const char* pmid;
-    auto it = moduleptr->talkersList.begin();
-    for (uint i = 0; i<moduleptr->talkersList.size(); i++)
-    {
-        id = (*it).getId();
-        for (auto it2 = moduleptr->devicesList.begin(); 
-            it2 != moduleptr->devicesList.end(); it2++)
-            if ((*it2).getId() == id)
-                pmid = (*it2).getPmid();
-        cout << "\t" << std::distance(moduleptr->talkersList.begin(), it) << ": Device ID " << id << " with PMID " << pmid << "\n";
-        it++;
-    }
-    cout << "\nEnter entry number to list data or (q) to quit\n";
-    int entry;
-    while (true)
-    {
-        std::string input;
-        cin >> input;
-        if (input.compare("q") == 0)
-            break;
-        else if (readInt(entry))
-        {
-            if ((entry < 0) || ((uint)entry >= moduleptr->talkersList.size()))
-            {
-                cout << "Entry not found.\n";
-                continue;
-            }
-            it = moduleptr->talkersList.begin();
-            advance(it, entry);
-            (*it).printData();
-            break;
-        }
-    }
-    return 1;
-}
-
 template <class T>
 int listEntities(boost::interprocess::list<T, boost::interprocess::allocator<T, boost::interprocess::managed_shared_memory::segment_manager>> &list, module_t *moduleptr)
 {
@@ -848,11 +788,7 @@ int listEntities(boost::interprocess::list<T, boost::interprocess::allocator<T, 
     int entry;
     while (true)
     {
-        std::string input;
-        cin >> input;
-        if (input.compare("q") == 0)
-            break;
-        else if (readInt(entry))
+        if (readInt(entry))
         {
             if ((entry < 0) || ((uint)entry >= list.size()))
             {
@@ -864,6 +800,40 @@ int listEntities(boost::interprocess::list<T, boost::interprocess::allocator<T, 
             it->printData();
             break;
         }
+        break;
+    }
+    return 1;
+}
+
+int listStreams(module_t *moduleptr)
+{
+    cout << "\n!---- LISTING THE " << "asd" << " ----!\n\n";
+    cout << "Number of registered talkers: " << moduleptr->streamsList.size() << "\n\n";
+    cout << "Device IDs registered as talkers:\n";
+    for (auto it = moduleptr->streamsList.begin(); 
+        it != moduleptr->streamsList.end(); it++)
+    {
+        cout << "\t" << std::distance(moduleptr->streamsList.begin(), it) << 
+            ": Stream ID " << it->stream_id << "\n";
+    }
+            
+    cout << "\nEnter entry number to list data or (q) to quit\n";
+    int entry;
+    while (true)
+    {
+        if (readInt(entry))
+        {
+            if ((entry < 0) || ((uint)entry >= moduleptr->streamsList.size()))
+            {
+                cout << "Entry not found.\n";
+                continue;
+            }
+            auto it2 = moduleptr->streamsList.begin();
+            advance(it2, entry);
+            it2->printData();
+            break;
+        }
+        break;
     }
     return 1;
 }
@@ -880,6 +850,12 @@ int showDevices(module_t *module)
     return 1;
 }
 
+// void sharedMemoryHealth()
+// {
+//         cout << "thread\n";
+//         cout.flush();
+//         // boost::chrono::milliseconds(1000);
+// }
 
 int main( int argc, char* argv[] ) 
 {
@@ -901,53 +877,74 @@ int main( int argc, char* argv[] )
 
     if (!(module_shm.first))
     {
-        cout << "Did not find SHM.\n";
+        cout << "Shared Memory unavailable. Is the sysrepo plugin running?\n";
         return 0;
     }
+
+    // start the health thread
+    // boost::thread t(sharedMemoryHealth);
+    // t.join();
 
     while (true)
     {
         cout << "\n!---- MAIN MENU ----!\n\n";
-        cout << "Select option\nShow Devices: D\nCreate Talker: T\nCreateListener: L\nList Talkers: LT\nList Listeners: LL\nQuit: Q\n";
+        cout << "Select option\nShow Devices: D\nCreate Talker: T\nCreateListener: L\n" <<
+            "List Talkers: LT\nList Listeners: LL\nList Streams: LS\nWrite Test Dummy Data: TT\nQuit: Q\n";
         std::string input;
         cin >> input;
-        if ((input.size() < 0) || (input.size() > 2))
+        if (input.compare("Q") == 0)
         {
-            cout << "invalid input: wrong length\n";
-        }
-        else if (input.compare("D") == 0)
-        {
-            cout << "\n!---- SHOW DEVICES ----!\n\n";
-            showDevices(module_shm.first);
-        }
-        else if (input.compare("T") == 0)
-        {
-            cout << "\n!---- CREATING A TALKER ----!\n\n";
-            createTalker(module_shm.first, alloc);
-        }
-        else if (input.compare("L") == 0)
-        {
-            cout << "\n!---- CREATING A LISTENER ----!\n\n";
-            createListener(module_shm.first, alloc);
-            cout << "Creating Listener\n";
-        }
-        else if (input.compare("LT") == 0)
-        {
-            listEntities(module_shm.first->talkersList, module_shm.first);
-        }
-        else if (input.compare("LL") == 0)
-        {
-            listEntities(module_shm.first->listenersList, module_shm.first);
-        }
-        else if (input.compare("LS") == 0)
-        {
-            listEntities(module_shm.first->streamsList, module_shm.first);
-        }
-        else if (input.compare("Q") == 0)
             return 0;
-        else
-        {
-            cout << "Invalid input: wrong char\n";
+        }
+        try {
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> 
+                lock(module_shm.first->mutex, boost::interprocess::try_to_lock);
+            if(lock)
+            {
+                if ((input.size() < 0) || (input.size() > 2))
+                {
+                    cout << "invalid input: wrong length\n";
+                }
+                else if (input.compare("D") == 0)
+                {
+                    cout << "\n!---- SHOW DEVICES ----!\n\n";
+                    showDevices(module_shm.first);
+                }
+                else if (input.compare("T") == 0)
+                {
+                    cout << "\n!---- CREATING A TALKER ----!\n\n";
+                    createTalker(module_shm.first, alloc);
+                }
+                else if (input.compare("L") == 0)
+                {
+                    cout << "\n!---- CREATING A LISTENER ----!\n\n";
+                    createListener(module_shm.first, alloc);
+                    cout << "Creating Listener\n";
+                }
+                else if (input.compare("LT") == 0)
+                {
+                    listEntities(module_shm.first->talkersList, module_shm.first);
+                }
+                else if (input.compare("LL") == 0)
+                {
+                    listEntities(module_shm.first->listenersList, module_shm.first);
+                }
+                else if (input.compare("LS") == 0)
+                {
+                    listStreams(module_shm.first);
+                }
+                else
+                {
+                    cout << "Invalid input: wrong char\n";
+                }
+            }
+            else
+            {
+                cout << "Shared memory currently locked. Try again later\n";
+            }
+        } catch (boost::interprocess::interprocess_exception &ex) {
+            std::cout << ex.what() << std::endl;
+            continue;
         }
         input.clear();
     }

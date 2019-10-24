@@ -71,7 +71,7 @@ typedef char_string ipv6_address_t;
 /* 
     choice for data frame specification 
 */
-enum field {MAC, VLAN, IPV4, IPV6};
+enum field {MAC, VLAN, IPV4, IPV6, TAO};
 
 /* 
     type for end station interface list in groups 
@@ -90,7 +90,7 @@ struct end_station_interface_t {
     type for stream-rank in groups 
 */
 struct stream_rank_t {
-    int rank;
+    uint rank;
 };
 
 /*
@@ -158,6 +158,8 @@ class device_t {
         ipv4_source_ip_address, ipv4_source_ip_address, dscp, protocol, source_port, destination_port
     4 = IPv6:
         ipv6_source_ip_address, ipv6_source_ip_address, dscp, protocol, source_port, destination_port
+    5 = TAO:
+        time aware offset
 */
 struct choice_t {
     int field;
@@ -169,25 +171,28 @@ struct choice_t {
     mac_t* destination_mac_address = &str2;
     ipv4_address_t* ipv4_destination_ip_address = &str2;
     ipv6_address_t* ipv6_destination_ip_address = &str2;
-    int val1;
-    int* pcp = &val1;
-    int* dscp = &val1;
-    int val2;
-    int* vlan_id = &val2;
-    int* protocol = &val2;
-    int val3;
-    int* source_port = &val3;
-    int val4;
-    int* destination_port = &val4;
+    uint val1;
+    uint* pcp = &val1;
+    uint* dscp = &val1;
+    uint* timeAwareOffset = &val1;
+    uint val2;
+    uint* vlan_id = &val2;
+    uint* protocol = &val2;
+    uint val3;
+    uint* source_port = &val3;
+    uint val4;
+    uint* destination_port = &val4;
     choice_t(const char_allocator &alloc)
         : str1(alloc), str2(alloc)
         {}
     // VLAN constructor
-    choice_t(int pcp, int vlan_id, const char_allocator &alloc);
+    choice_t(uint pcp, int vlan_id, const char_allocator &alloc);
     // MAC constructor source, dest
     choice_t(std::string mac_source, std::string mac_dest, const char_allocator &alloc);
     // IPV4/6 constructor
     choice_t(std::string ipSource, std::string ipDest, int sourcePort, int destPort, int dscp, int protocol, const char_allocator &alloc);
+    // TAO constructor
+    choice_t(uint timeAwareOffset, const char_allocator &alloc);
 };
 
 /*
@@ -200,14 +205,17 @@ struct data_frame_specification_t {
     data_frame_specification_t(const char_allocator &alloc)
         : index(-1), choice(alloc) 
         {}
-    data_frame_specification_t(int index, std::string mac_source, std::string mac_dest, const char_allocator &alloc)
+    data_frame_specification_t(uint index, std::string mac_source, std::string mac_dest, const char_allocator &alloc)
         : index(index), choice(mac_source, mac_dest, alloc)
         {}
-    data_frame_specification_t(int index, int pcp, int vlan_id, const char_allocator &alloc)
+    data_frame_specification_t(uint index, uint pcp, uint vlan_id, const char_allocator &alloc)
         : index(index), choice(pcp, vlan_id, alloc)
         {}
-    data_frame_specification_t(int index, std::string ipSource, std::string ipDest, int sourcePort, int destPort, int dscp, int protocol, const char_allocator &alloc)
+    data_frame_specification_t(uint index, std::string ipSource, std::string ipDest, uint sourcePort, uint destPort, uint dscp, uint protocol, const char_allocator &alloc)
         : index(index), choice(ipSource, ipDest, sourcePort, destPort, dscp, protocol, alloc)
+        {}
+    data_frame_specification_t(uint index, uint timeAwareOffset, const char_allocator &alloc)
+        : index(index), choice(timeAwareOffset, alloc)
         {}
 };
 
@@ -271,6 +279,7 @@ class talker_t : public end_station_t{
         {}
     int addSpecification(data_frame_specification_t spec);
     int setRank(int rank);
+    int setRank(uint rank);
     void printData();
 };
 
@@ -307,15 +316,7 @@ struct status_info_t{
 /*
     Config list
 */
-struct config_t : public data_frame_specification_t {
-    int time_aware_offset;
-    config_t(const void_allocator &alloc)
-        : data_frame_specification_t(alloc)
-        {}
-    config_t(data_frame_specification_t dfs, int timeAwareOffset)
-        : data_frame_specification_t(dfs), time_aware_offset(timeAwareOffset)
-        {}
-};
+typedef data_frame_specification_t config_t;
 
 typedef boost::interprocess::allocator<config_t, segment_manager_t>                 config_t_allocator;
 typedef boost::interprocess::list<config_t, config_t_allocator>                     config_list_t;
@@ -346,7 +347,7 @@ struct status_talker_listener_t {
 };
 
 struct listeners_status_t : public status_talker_listener_t {
-    int listener_id;
+    uint listener_id;
     listeners_status_t(const void_allocator &alloc)
         : status_talker_listener_t(alloc)
         {}
@@ -398,6 +399,7 @@ typedef boost::interprocess::list<stream_t, stream_t_allocator>                 
 */
 class module_t{
     public:
+    boost::interprocess::interprocess_mutex mutex;
     device_list_t devicesList;
     talker_list_t talkersList;
     listener_list_t listenersList;
